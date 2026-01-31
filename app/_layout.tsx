@@ -1,41 +1,39 @@
 import { Stack, useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useState } from "react";
-import { auth } from "../firebaseConfig";
-
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-
+import { auth } from "../firebaseConfig";
+import EmergencyActionBar from "../src/components/EmergencyActionBar";
+import VitalsWatcher from "../src/providers/VitalsWatcher";
+import { useEmergencyStore } from "../src/store/emergencyStore";
 export default function RootLayout() {
   const router = useRouter();
+  const emergencyActive = useEmergencyStore((s) => s.emergencyActive);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       setCheckingAuth(false);
-
-      if (user) {
-        router.replace("/(app)/home");
-      } else {
-        router.replace("/(auth)/login");
-      }
+      router.replace(user ? "/(app)/home" : "/(auth)/login");
     });
-
     return unsub;
   }, []);
 
+  useEffect(() => {
+    if (emergencyActive) {
+      router.push("/map");
+    }
+  }, [emergencyActive]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* ✅ MUST be self-closing */}
+      <VitalsWatcher />
+
       <Stack screenOptions={{ headerShown: false }}>
-        {/* Loader */}
         <Stack.Screen name="loading" />
-
-        {/* Auth */}
         <Stack.Screen name="(auth)" />
-
-        {/* Main App */}
         <Stack.Screen name="(app)" />
-
-        {/* Extra Screens */}
         <Stack.Screen name="add-device" />
         <Stack.Screen name="device-details" />
         <Stack.Screen name="edit-device" />
@@ -44,6 +42,7 @@ export default function RootLayout() {
         <Stack.Screen name="contacts" />
         <Stack.Screen name="settings" />
       </Stack>
+      <EmergencyActionBar />
     </GestureHandlerRootView>
   );
 }

@@ -1,9 +1,10 @@
+import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -19,22 +20,20 @@ import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
 
 import { Ionicons } from "@expo/vector-icons";
+import PrimaryAidCard from "../src/components/PrimaryAidCard";
 import { useEmergencyStore } from "../src/store/emergencyStore";
 import { theme } from "../src/theme/theme";
-
 // ✅ CHANGE THIS to your laptop IP
-const BACKEND_URL = "http://192.168.29.170:5000";
+const BACKEND_URL = "http://192.168.1.9/iotjacket-api-php/api/v1";
 
 export default function MapScreen() {
   const { jacketId } = useLocalSearchParams();
-
   const mapRef = useRef(null);
   const sheetRef = useRef(null);
-
   const snapPoints = useMemo(() => ["18%", "52%", "80%"], []);
-
-  const { emergencyActive, startEmergency, stopEmergency } = useEmergencyStore();
-
+  const emergencyActive = useEmergencyStore((s) => s.emergencyActive);
+  const emergencyReason = useEmergencyStore((s) => s.emergencyReason);
+  const stopEmergency = useEmergencyStore((s) => s.stopEmergency);
   // ✅ Jacket location (LIVE from backend)
   const [location, setLocation] = useState({ lat: 28.6139, lng: 77.209 });
   const lastLocationRef = useRef({ lat: 28.6139, lng: 77.209 });
@@ -53,7 +52,10 @@ export default function MapScreen() {
   // ✅ Selected hospital + route
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
-  const [routeInfo, setRouteInfo] = useState({ distanceKm: null, durationMin: null });
+  const [routeInfo, setRouteInfo] = useState({
+    distanceKm: null,
+    durationMin: null,
+  });
   const [loadingRoute, setLoadingRoute] = useState(false);
 
   // ✅ Navigation mode
@@ -71,10 +73,11 @@ export default function MapScreen() {
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
-      Math.sin(dLat / 2) ** 2 +
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
         Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) ** 2;
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -88,9 +91,16 @@ export default function MapScreen() {
         center: { latitude: lat, longitude: lng },
         zoom: navMode ? 16 : 14,
       },
-      { duration: 700 }
+      { duration: 700 },
     );
   };
+
+  useEffect(() => {
+    if (emergencyActive) {
+      fetchHospitals();
+      setNavMode(true);
+    }
+  }, [emergencyActive]);
 
   // ✅ LIVE fetch jacket data
   useEffect(() => {
@@ -98,9 +108,18 @@ export default function MapScreen() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/location/${jacketId}`);
-        const data = await res.json();
+        const res = await fetch(
+          `${BACKEND_URL}/vitals/latest.php?jacket_id=${jacketId}`,
+        );
 
+        const json = await res.json();
+
+        // ✅ ALWAYS check success
+        if (!json.success) return;
+
+        const data = json.data;
+
+        // ✅ LOCATION
         if (data.lat !== undefined && data.lng !== undefined) {
           const newLat = Number(data.lat);
           const newLng = Number(data.lng);
@@ -108,16 +127,16 @@ export default function MapScreen() {
           const old = lastLocationRef.current;
           const diff = getDistanceKm(old.lat, old.lng, newLat, newLng);
 
-          // ✅ update only when movement is meaningful (prevents jitter)
+          // prevent GPS jitter
           if (diff > 0.02) {
             lastLocationRef.current = { lat: newLat, lng: newLng };
             setLocation({ lat: newLat, lng: newLng });
 
-            // ✅ keep camera following in navigation
             if (navMode) animateToLocation(newLat, newLng);
           }
         }
 
+        // ✅ HEALTH
         setHealth((prev) => ({
           spo2: data.spo2 ?? prev.spo2,
           pulse: data.pulse ?? prev.pulse,
@@ -130,7 +149,6 @@ export default function MapScreen() {
 
     return () => clearInterval(interval);
   }, [jacketId, navMode]);
-
   // ✅ Fetch hospitals (FREE)
   const fetchHospitals = async () => {
     try {
@@ -163,6 +181,8 @@ out;
         name: h.tags?.name || "Hospital",
         lat: h.lat,
         lng: h.lon,
+        phone:
+          h.tags?.phone || h.tags?.["contact:phone"] || h.tags?.mobile || null,
       }));
 
       setHospitals(list);
@@ -253,13 +273,13 @@ out;
 
     const rerouteInterval = setInterval(() => {
       fetchRouteToHospital(selectedHospital);
-    }, 6000);
+    }, 8000);
 
     return () => clearInterval(rerouteInterval);
-  }, [navMode, selectedHospital, location.lat, location.lng]);
+  }, [navMode, selectedHospital]);
 
   // ✅ SOS BUTTON
-  const handleSOS = async () => {
+  const handleSOS = async (autoReason = "Manual SOS") => {
     try {
       if (sosSent) return;
 
@@ -273,7 +293,7 @@ out;
       const uid = auth.currentUser?.uid;
       if (!uid) return;
 
-      const reason = "Auto SOS Activated";
+      const reason = autoReason;
 
       // ✅ Save to Firestore
       await addDoc(collection(db, "users", uid, "alerts"), {
@@ -287,8 +307,6 @@ out;
         status: "ACTIVE",
         createdAt: serverTimestamp(),
       });
-
-      startEmergency(reason);
 
       Alert.alert("🚨 SOS SENT", "Alert saved & Emergency Mode Activated ✅");
 
@@ -339,7 +357,11 @@ out;
 
         {/* Route */}
         {routeCoords.length > 0 && (
-          <Polyline coordinates={routeCoords} strokeWidth={5} strokeColor="#2563EB" />
+          <Polyline
+            coordinates={routeCoords}
+            strokeWidth={5}
+            strokeColor="#2563EB"
+          />
         )}
       </MapView>
 
@@ -359,6 +381,45 @@ out;
         </Pressable>
       </View>
 
+      {emergencyActive && (
+        <View
+          style={{
+            position: "absolute",
+            top: 120,
+            left: 16,
+            right: 16,
+            backgroundColor: "#FF3B30",
+            padding: 18,
+            borderRadius: 18,
+            zIndex: 9999,
+            elevation: 9999,
+            shadowColor: "#000",
+            shadowOpacity: 0.3,
+            shadowRadius: 10,
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "900", fontSize: 16 }}>
+            🚨 EMERGENCY ALERT
+          </Text>
+
+          <Text style={{ color: "#fff", marginTop: 4 }}>
+            {emergencyReason || "Critical condition detected"}
+          </Text>
+
+          <Pressable
+            onPress={stopEmergency}
+            style={{
+              marginTop: 10,
+              backgroundColor: "#fff",
+              padding: 8,
+              borderRadius: 10,
+              alignSelf: "flex-start",
+            }}
+          >
+            <Text style={{ fontWeight: "800" }}>Dismiss</Text>
+          </Pressable>
+        </View>
+      )}
       {/* ✅ BOTTOM CARD */}
       <View style={styles.card}>
         {/* Header Row */}
@@ -373,7 +434,7 @@ out;
             <Text style={styles.sosText}>{sosSent ? "SOS Sent" : "SOS"}</Text>
           </Pressable>
         </View>
-
+        <PrimaryAidCard />
         {/* Health */}
         <View style={styles.row}>
           <Chip label="SpO2" value={`${health.spo2}%`} />
@@ -395,7 +456,10 @@ out;
           </Pressable>
 
           <Pressable
-            style={[styles.secondaryBtn, navMode && { backgroundColor: theme.colors.dangerSoft }]}
+            style={[
+              styles.secondaryBtn,
+              navMode && { backgroundColor: theme.colors.dangerSoft },
+            ]}
             onPress={navMode ? stopNavigation : startNavigation}
           >
             <Ionicons
@@ -427,9 +491,16 @@ out;
       </View>
 
       {/* ✅ Hospital List BottomSheet */}
-      <BottomSheet ref={sheetRef} index={-1} snapPoints={snapPoints} enablePanDownToClose>
-        <View style={{ padding: 14 }}>
-          <Text style={styles.sheetTitle}>Hospitals Nearby ({filteredHospitals.length})</Text>
+      <BottomSheet
+        ref={sheetRef}
+        index={-1}
+        snapPoints={snapPoints}
+        enablePanDownToClose
+      >
+        <View style={{ flex: 1, padding: 14 }}>
+          <Text style={styles.sheetTitle}>
+            Hospitals Nearby ({filteredHospitals.length})
+          </Text>
 
           <TextInput
             placeholder="Search hospital..."
@@ -439,29 +510,59 @@ out;
             placeholderTextColor="#999"
           />
 
-          <FlatList
+          <BottomSheetFlatList
             data={filteredHospitals}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 120 }}
             renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  setSelectedHospital(item);
-                  fetchRouteToHospital(item);
-
-                  mapRef.current?.animateCamera(
-                    { center: { latitude: item.lat, longitude: item.lng }, zoom: 14 },
-                    { duration: 700 }
-                  );
-                }}
+              <View
                 style={[
                   styles.hospitalItem,
                   selectedHospital?.id === item.id && styles.hospitalActive,
                 ]}
               >
-                <Text style={styles.hospitalName}>{item.name}</Text>
-                <Text style={styles.hospitalDist}>{item.distanceKm.toFixed(2)} km away</Text>
-              </Pressable>
+                {/* SELECT + ROUTE */}
+                <Pressable
+                  onPress={() => {
+                    setSelectedHospital(item);
+                    fetchRouteToHospital(item);
+
+                    mapRef.current?.animateCamera(
+                      {
+                        center: { latitude: item.lat, longitude: item.lng },
+                        zoom: 14,
+                      },
+                      { duration: 700 },
+                    );
+                  }}
+                >
+                  <Text style={styles.hospitalName}>{item.name}</Text>
+                  <Text style={styles.hospitalDist}>
+                    {item.distanceKm.toFixed(2)} km away
+                  </Text>
+                </Pressable>
+
+                {/* CALL */}
+                {item.phone ? (
+                  <Pressable
+                    style={styles.callBtn}
+                    onPress={() => Linking.openURL(`tel:${item.phone}`)}
+                  >
+                    <Ionicons name="call" size={16} color="#fff" />
+                    <Text style={styles.callText}>Call Hospital</Text>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={[styles.callBtn, { backgroundColor: "#EF4444" }]}
+                    onPress={() => Linking.openURL("tel:108")}
+                  >
+                    <Ionicons name="call" size={16} color="#fff" />
+                    <Text style={styles.callText}>Call 108 Ambulance</Text>
+                  </Pressable>
+                )}
+              </View>
             )}
           />
         </View>
@@ -614,11 +715,31 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+
+    //Adding
+    minHeight: 120,
+    justifyContent: "space-between",
   },
 
   hospitalActive: {
     backgroundColor: "#EEF2FF",
     borderColor: "#C7D2FE",
+  },
+  callBtn: {
+    marginTop: 10,
+    backgroundColor: "#16A34A", // medical green
+    paddingVertical: 10,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  callText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 14,
   },
 
   hospitalName: { fontWeight: "900" },

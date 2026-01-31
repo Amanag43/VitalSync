@@ -30,11 +30,15 @@ export default function LoadingScreen() {
       {/* Logo with glow */}
       <Animated.View style={[styles.logoWrap, glowStyle]}>
         <View style={styles.logoBox}>
-          <Ionicons name="shield-checkmark" size={34} color={theme.colors.primary} />
+          <Ionicons
+            name="shield-checkmark"
+            size={34}
+            color={theme.colors.primary}
+          />
         </View>
       </Animated.View>
 
-      <Text style={styles.title}>IoTJacket</Text>
+      <Text style={styles.title}>Ninfet Jacket</Text>
       <Text style={styles.sub}>Securing health in real-time</Text>
 
       <View style={styles.loadingRow}>

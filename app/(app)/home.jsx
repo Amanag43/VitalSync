@@ -1,6 +1,13 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { signOut } from "firebase/auth";
 import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
@@ -8,15 +15,20 @@ import { auth, db } from "../../firebaseConfig";
 
 import { Ionicons } from "@expo/vector-icons";
 import AppScreen from "../../src/components/AppScreen";
+import BMICard from "../../src/components/BMICard";
 import EmergencyBanner from "../../src/components/EmergencyBanner";
 import FAB from "../../src/components/FAB";
+import PrimaryAidCard from "../../src/components/PrimaryAidCard";
 import StatusPill from "../../src/components/StatusPill";
 import { useEmergencyStore } from "../../src/store/emergencyStore";
+import { useVitalsStore } from "../../src/store/vitalsStore";
 import { theme } from "../../src/theme/theme";
 
 export default function Home() {
-  const { emergencyActive } = useEmergencyStore();
-
+  const emergencyActive = useEmergencyStore((s) => s.emergencyActive);
+  const emergencyReason = useEmergencyStore((s) => s.emergencyReason);
+  const stopEmergency = useEmergencyStore((s) => s.stopEmergency);
+  const { vitals } = useVitalsStore();
   const [devices, setDevices] = useState([]);
   const [sosActiveCount, setSosActiveCount] = useState(0); // optional UI indicator
 
@@ -86,27 +98,85 @@ export default function Home() {
               Logged in as: {userEmail}
             </Text>
           </View>
+          {/* ✅ EMERGENCY ACTIVE CARD */}
+          {emergencyActive && (
+            <View
+              style={{
+                backgroundColor: "#DC2626",
+                padding: 16,
+                borderRadius: 18,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.2)",
+              }}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
+              >
+                <Ionicons name="warning" size={22} color="#fff" />
+                <Text
+                  style={{ color: "#fff", fontWeight: "900", fontSize: 16 }}
+                >
+                  Emergency Active
+                </Text>
+              </View>
 
-          <Pressable onPress={() => router.push("/settings")} style={styles.iconBtn}>
-            <Ionicons name="settings-outline" size={20} color={theme.colors.text} />
+              <Text
+                style={{
+                  marginTop: 6,
+                  color: "#FFE4E6",
+                  fontWeight: "700",
+                  fontSize: 13,
+                }}
+              >
+                {emergencyReason || "Critical vitals detected"}
+              </Text>
 
+              <Pressable
+                onPress={stopEmergency}
+                style={{
+                  marginTop: 10,
+                  alignSelf: "flex-start",
+                  backgroundColor: "#fff",
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 12,
+                }}
+              >
+                <Text style={{ fontWeight: "900", color: "#111" }}>
+                  Dismiss
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          <Pressable
+            onPress={() => router.push("/settings")}
+            style={styles.iconBtn}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={20}
+              color={theme.colors.text}
+            />
           </Pressable>
         </View>
         {/* ✅ EMERGENCY BANNER */}
         <EmergencyBanner
-  onOpenMap={() => {
-    if (devices.length === 0) {
-      Alert.alert("No Device", "Add a device first");
-      return;
-    }
+          onOpenMap={() => {
+            if (devices.length === 0) {
+              Alert.alert("No Device", "Add a device first");
+              return;
+            }
 
-    // ✅ open map using first device jacketId
-    router.push({
-      pathname: "/map",
-      params: { jacketId: devices[0].jacketId },
-    });
-  }}
-/>
+            // ✅ open map using first device jacketId
+            router.push({
+              pathname: "/map",
+              params: { jacketId: devices[0].jacketId },
+            });
+          }}
+        />
+        <PrimaryAidCard />
 
         {/* ✅ SUMMARY CARDS */}
         <View style={styles.statsRow}>
@@ -123,28 +193,68 @@ export default function Home() {
           </View>
         </View>
 
+        {emergencyActive && emergencyReason === "LOW_SIGNAL" && (
+          <Text style={{ color: "#F59E0B", fontWeight: "800", marginTop: 6 }}>
+            ⚠️ Weak signal detected
+          </Text>
+        )}
+
+        {emergencyActive && emergencyReason === "DEVICE_OFFLINE" && (
+          <Text style={{ color: "#DC2626", fontWeight: "900", marginTop: 6 }}>
+            🚫 Device offline
+          </Text>
+        )}
+
         {/* ✅ QUICK ACTIONS */}
         <View style={styles.quickRow}>
-          <Pressable style={styles.quickCard} onPress={() => router.push("/alerts")}>
-            <View style={[styles.quickIcon, { backgroundColor: theme.colors.dangerSoft }]}>
-              <Ionicons name="alert-circle" size={18} color={theme.colors.danger} />
+          <Pressable
+            style={styles.quickCard}
+            onPress={() => router.push("/alerts")}
+          >
+            <View
+              style={[
+                styles.quickIcon,
+                { backgroundColor: theme.colors.dangerSoft },
+              ]}
+            >
+              <Ionicons
+                name="alert-circle"
+                size={18}
+                color={theme.colors.danger}
+              />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.quickTitle}>Alerts</Text>
               <Text style={styles.quickSub}>SOS history & vitals</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.colors.muted}
+            />
           </Pressable>
 
-          <Pressable style={styles.quickCard} onPress={() => router.push("/contacts")}>
-            <View style={[styles.quickIcon, { backgroundColor: theme.colors.primarySoft }]}>
+          <Pressable
+            style={styles.quickCard}
+            onPress={() => router.push("/contacts")}
+          >
+            <View
+              style={[
+                styles.quickIcon,
+                { backgroundColor: theme.colors.primarySoft },
+              ]}
+            >
               <Ionicons name="call" size={18} color={theme.colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.quickTitle}>Contacts</Text>
               <Text style={styles.quickSub}>Emergency numbers</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.colors.muted}
+            />
           </Pressable>
         </View>
 
@@ -153,16 +263,20 @@ export default function Home() {
           <Text style={styles.sectionTitle}>My Devices</Text>
           <Text style={styles.sectionSmall}>Tap a device for tracking</Text>
         </View>
-
         <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
           {devices.length === 0 ? (
             <View style={styles.emptyBox}>
               <View style={styles.emptyIcon}>
-                <Ionicons name="watch-outline" size={26} color={theme.colors.primary} />
+                <Ionicons
+                  name="watch-outline"
+                  size={26}
+                  color={theme.colors.primary}
+                />
               </View>
               <Text style={styles.emptyTitle}>No Devices Added</Text>
               <Text style={styles.emptySub}>
-                Add your first IoT Jacket device to enable live tracking and SOS safety.
+                Add your first Ninfet device to enable live tracking and SOS
+                safety.
               </Text>
             </View>
           ) : (
@@ -180,10 +294,15 @@ export default function Home() {
                     })
                   }
                 >
+                  <BMICard weight={d.weight} height={d.height} />
                   {/* Top row */}
                   <View style={styles.deviceTop}>
                     <View style={styles.deviceIcon}>
-                      <Ionicons name="shield-checkmark" size={18} color={theme.colors.primary} />
+                      <Ionicons
+                        name="shield-checkmark"
+                        size={18}
+                        color={theme.colors.primary}
+                      />
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -200,12 +319,16 @@ export default function Home() {
                   <View style={styles.chipRow}>
                     <View style={styles.chip}>
                       <Text style={styles.chipLabel}>Blood</Text>
-                      <Text style={styles.chipValue}>{d.bloodGroup || "N/A"}</Text>
+                      <Text style={styles.chipValue}>
+                        {d.bloodGroup || "N/A"}
+                      </Text>
                     </View>
 
                     <View style={styles.chip}>
                       <Text style={styles.chipLabel}>Allergy</Text>
-                      <Text style={styles.chipValue}>{d.allergies || "None"}</Text>
+                      <Text style={styles.chipValue}>
+                        {d.allergies || "None"}
+                      </Text>
                     </View>
                   </View>
 
@@ -220,12 +343,19 @@ export default function Home() {
                         })
                       }
                     >
-                      <Ionicons name="eye" size={14} color={theme.colors.text} />
+                      <Ionicons
+                        name="eye"
+                        size={14}
+                        color={theme.colors.text}
+                      />
                       <Text style={styles.smallBtnText}>Open</Text>
                     </Pressable>
 
                     <Pressable
-                      style={[styles.smallBtn, { backgroundColor: theme.colors.dangerSoft }]}
+                      style={[
+                        styles.smallBtn,
+                        { backgroundColor: theme.colors.dangerSoft },
+                      ]}
                       onPress={() =>
                         Alert.alert(
                           "Delete Device?",
@@ -237,12 +367,21 @@ export default function Home() {
                               style: "destructive",
                               onPress: () => handleDeleteDevice(d.id),
                             },
-                          ]
+                          ],
                         )
                       }
                     >
-                      <Ionicons name="trash" size={14} color={theme.colors.danger} />
-                      <Text style={[styles.smallBtnText, { color: theme.colors.danger }]}>
+                      <Ionicons
+                        name="trash"
+                        size={14}
+                        color={theme.colors.danger}
+                      />
+                      <Text
+                        style={[
+                          styles.smallBtnText,
+                          { color: theme.colors.danger },
+                        ]}
+                      >
                         Delete
                       </Text>
                     </Pressable>
@@ -350,14 +489,24 @@ const styles = StyleSheet.create({
   },
 
   quickTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 14 },
-  quickSub: { marginTop: 3, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  quickSub: {
+    marginTop: 3,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   sectionHeader: {
     marginBottom: 12,
   },
 
   sectionTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
-  sectionSmall: { marginTop: 4, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  sectionSmall: {
+    marginTop: 4,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   emptyBox: {
     backgroundColor: theme.colors.card,
@@ -417,7 +566,12 @@ const styles = StyleSheet.create({
   },
 
   deviceName: { color: theme.colors.text, fontWeight: "900", fontSize: 15 },
-  deviceMeta: { marginTop: 4, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  deviceMeta: {
+    marginTop: 4,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   chipRow: {
     flexDirection: "row",
@@ -435,7 +589,12 @@ const styles = StyleSheet.create({
   },
 
   chipLabel: { color: theme.colors.muted, fontWeight: "800", fontSize: 11 },
-  chipValue: { marginTop: 5, color: theme.colors.text, fontWeight: "900", fontSize: 13 },
+  chipValue: {
+    marginTop: 5,
+    color: theme.colors.text,
+    fontWeight: "900",
+    fontSize: 13,
+  },
 
   cardActions: {
     marginTop: 14,

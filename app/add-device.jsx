@@ -1,6 +1,13 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebaseConfig";
@@ -64,13 +71,16 @@ export default function AddDevice() {
 
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Add Device</Text>
-          <Text style={styles.subTitle}>Bind your IoT Jacket securely</Text>
+          <Text style={styles.subTitle}>Bind your Ninfet Jacket securely</Text>
         </View>
 
         <View style={{ width: 42 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {/* ✅ CARD 1 */}
         <View style={styles.card}>
           <View style={styles.cardHead}>

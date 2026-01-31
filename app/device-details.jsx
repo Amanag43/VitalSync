@@ -88,7 +88,7 @@ export default function DeviceDetails() {
 
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Device Details</Text>
-          <Text style={styles.subTitle}>Track & manage your IoT Jacket</Text>
+          <Text style={styles.subTitle}>Track & manage your Ninfet Jacket</Text>
         </View>
 
         <Pressable
@@ -104,17 +104,26 @@ export default function DeviceDetails() {
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      >
         {/* ✅ MAIN DEVICE CARD */}
         <View style={styles.deviceCard}>
           <View style={styles.deviceTopRow}>
             <View style={styles.deviceIcon}>
-              <Ionicons name="shield-checkmark" size={20} color={theme.colors.primary} />
+              <Ionicons
+                name="shield-checkmark"
+                size={20}
+                color={theme.colors.primary}
+              />
             </View>
 
             <View style={{ flex: 1 }}>
               <Text style={styles.deviceName}>{device.deviceName}</Text>
-              <Text style={styles.deviceMeta}>Jacket ID: {device.jacketId}</Text>
+              <Text style={styles.deviceMeta}>
+                Jacket ID: {device.jacketId}
+              </Text>
             </View>
 
             <StatusPill type={getStatus()} />
@@ -144,7 +153,11 @@ export default function DeviceDetails() {
                 })
               }
             >
-              <Ionicons name="settings-outline" size={16} color={theme.colors.text} />
+              <Ionicons
+                name="settings-outline"
+                size={16}
+                color={theme.colors.text}
+              />
               <Text style={styles.ctaTextSecondary}>Edit</Text>
             </Pressable>
           </View>
@@ -156,9 +169,21 @@ export default function DeviceDetails() {
 
           <View style={styles.grid}>
             <InfoBox icon="calendar" label="Age" value={device.age || "N/A"} />
-            <InfoBox icon="barbell" label="Weight" value={device.weight ? `${device.weight} kg` : "N/A"} />
-            <InfoBox icon="resize" label="Height" value={device.height ? `${device.height} cm` : "N/A"} />
-            <InfoBox icon="water" label="Blood" value={device.bloodGroup || "N/A"} />
+            <InfoBox
+              icon="barbell"
+              label="Weight"
+              value={device.weight ? `${device.weight} kg` : "N/A"}
+            />
+            <InfoBox
+              icon="resize"
+              label="Height"
+              value={device.height ? `${device.height} cm` : "N/A"}
+            />
+            <InfoBox
+              icon="water"
+              label="Blood"
+              value={device.bloodGroup || "N/A"}
+            />
           </View>
 
           <View style={styles.noteBox}>
@@ -171,26 +196,56 @@ export default function DeviceDetails() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Quick Actions</Text>
 
-          <Pressable style={styles.actionItem} onPress={() => router.push("/alerts")}>
-            <View style={[styles.actionIcon, { backgroundColor: theme.colors.dangerSoft }]}>
-              <Ionicons name="alert-circle" size={18} color={theme.colors.danger} />
+          <Pressable
+            style={styles.actionItem}
+            onPress={() => router.push("/alerts")}
+          >
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: theme.colors.dangerSoft },
+              ]}
+            >
+              <Ionicons
+                name="alert-circle"
+                size={18}
+                color={theme.colors.danger}
+              />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionTitle}>View Alerts</Text>
-              <Text style={styles.actionSub}>Check SOS history for this account</Text>
+              <Text style={styles.actionSub}>
+                Check SOS history for this account
+              </Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.colors.muted}
+            />
           </Pressable>
 
-          <Pressable style={styles.actionItem} onPress={() => router.push("/contacts")}>
-            <View style={[styles.actionIcon, { backgroundColor: theme.colors.primarySoft }]}>
+          <Pressable
+            style={styles.actionItem}
+            onPress={() => router.push("/contacts")}
+          >
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: theme.colors.primarySoft },
+              ]}
+            >
               <Ionicons name="call" size={18} color={theme.colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionTitle}>Emergency Contacts</Text>
               <Text style={styles.actionSub}>People to notify in SOS</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.muted} />
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={theme.colors.muted}
+            />
           </Pressable>
         </View>
 
@@ -243,7 +298,12 @@ const styles = StyleSheet.create({
   },
 
   title: { color: theme.colors.text, fontSize: 20, fontWeight: "900" },
-  subTitle: { marginTop: 2, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  subTitle: {
+    marginTop: 2,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   deviceCard: {
     backgroundColor: theme.colors.card,
@@ -272,7 +332,12 @@ const styles = StyleSheet.create({
   },
 
   deviceName: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
-  deviceMeta: { marginTop: 4, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  deviceMeta: {
+    marginTop: 4,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   ctaRow: {
     flexDirection: "row",
@@ -317,7 +382,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  cardTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 14, marginBottom: 12 },
+  cardTitle: {
+    color: theme.colors.text,
+    fontWeight: "900",
+    fontSize: 14,
+    marginBottom: 12,
+  },
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
 
@@ -330,8 +400,18 @@ const styles = StyleSheet.create({
     padding: 12,
   },
 
-  infoLabel: { color: theme.colors.muted, fontWeight: "800", fontSize: 12, marginTop: 6 },
-  infoValue: { color: theme.colors.text, fontWeight: "900", fontSize: 14, marginTop: 4 },
+  infoLabel: {
+    color: theme.colors.muted,
+    fontWeight: "800",
+    fontSize: 12,
+    marginTop: 6,
+  },
+  infoValue: {
+    color: theme.colors.text,
+    fontWeight: "900",
+    fontSize: 14,
+    marginTop: 4,
+  },
 
   noteBox: {
     marginTop: 14,
@@ -368,5 +448,10 @@ const styles = StyleSheet.create({
   },
 
   actionTitle: { color: theme.colors.text, fontWeight: "900" },
-  actionSub: { color: theme.colors.muted, fontWeight: "700", fontSize: 12, marginTop: 3 },
+  actionSub: {
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+    marginTop: 3,
+  },
 });

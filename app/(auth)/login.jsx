@@ -27,7 +27,8 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) return Alert.alert("Error", "All fields are required");
+    if (!email || !password)
+      return Alert.alert("Error", "All fields are required");
 
     try {
       setLoading(true);
@@ -43,7 +44,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.colors.bg }}
+      edges={["top", "bottom"]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
@@ -56,10 +60,14 @@ export default function LoginScreen() {
         <AnimatedCard>
           <View style={styles.brand}>
             <View style={styles.logoBox}>
-              <Ionicons name="shield-checkmark" size={26} color={theme.colors.primary} />
+              <Ionicons
+                name="shield-checkmark"
+                size={26}
+                color={theme.colors.primary}
+              />
             </View>
 
-            <Text style={styles.appName}>IoTJacket</Text>
+            <Text style={styles.appName}>Ninfet Smart Textile</Text>
             <Text style={styles.tagline}>Health • SOS • Live Tracking</Text>
           </View>
         </AnimatedCard>
@@ -68,7 +76,9 @@ export default function LoginScreen() {
         <AnimatedCard>
           <View style={styles.card}>
             <Text style={styles.title}>Welcome back</Text>
-            <Text style={styles.subTitle}>Login to continue monitoring safely</Text>
+            <Text style={styles.subTitle}>
+              Login to continue monitoring safely
+            </Text>
 
             <AppInput
               label="Email"
@@ -107,10 +117,7 @@ export default function LoginScreen() {
             <PressableScale
               disabled={loading}
               onPress={handleLogin}
-              style={[
-                styles.mainBtn,
-                { opacity: loading ? 0.7 : 1 },
-              ]}
+              style={[styles.mainBtn, { opacity: loading ? 0.7 : 1 }]}
             >
               <Text style={styles.mainBtnText}>
                 {loading ? "Logging in..." : "Login"}
@@ -126,17 +133,27 @@ export default function LoginScreen() {
 
             {/* Google Placeholder */}
             <PressableScale
-              onPress={() => Alert.alert("Google Login", "We will enable Google later ✅")}
+              onPress={() =>
+                Alert.alert("Google Login", "We will enable Google later ✅")
+              }
               style={styles.googleBtn}
             >
-              <Ionicons name="logo-google" size={16} color={theme.colors.text} />
+              <Ionicons
+                name="logo-google"
+                size={16}
+                color={theme.colors.text}
+              />
               <Text style={styles.googleText}>Continue with Google</Text>
             </PressableScale>
 
             {/* Signup */}
-            <PressableScale onPress={() => router.push("/(auth)/signup")} style={{ marginTop: 14 }}>
+            <PressableScale
+              onPress={() => router.push("/(auth)/signup")}
+              style={{ marginTop: 14 }}
+            >
               <Text style={styles.link}>
-                Don’t have an account? <Text style={styles.linkBold}>Sign up</Text>
+                Don’t have an account?{" "}
+                <Text style={styles.linkBold}>Sign up</Text>
               </Text>
             </PressableScale>
 
