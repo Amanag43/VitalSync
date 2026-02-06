@@ -1,5 +1,5 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
   Alert,
@@ -10,9 +10,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { auth } from "../../firebaseConfig";
-
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AppButton from "../../src/components/AppButton";
 import AppInput from "../../src/components/AppInput";
@@ -26,21 +23,48 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!name || !email || !password) return Alert.alert("Error", "All fields are required");
+    if (!name || !email || !password) {
+      Alert.alert("Error", "All fields required");
+      return;
+    }
 
     try {
       setLoading(true);
-      await createUserWithEmailAndPassword(auth, email, password);
-      Alert.alert("✅ Success", "Account created!");
-    } catch (error) {
-      Alert.alert("Signup Failed", error.message);
+
+      const res = await fetch(
+        "http://192.168.1.9/iotjacket-api-php/api/v1/auth/signup.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            password,
+          }),
+        },
+      );
+
+      const json = await res.json();
+
+      if (!json.success) {
+        Alert.alert("Signup Failed", json.message);
+        return;
+      }
+
+      Alert.alert("✅ Success", "Account created");
+      router.replace("/(auth)/login");
+    } catch (e) {
+      Alert.alert("Error", "Server not reachable");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={["top", "bottom"]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.colors.bg }}
+      edges={["top", "bottom"]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.container}
@@ -52,11 +76,17 @@ export default function SignupScreen() {
         {/* Brand */}
         <View style={styles.brand}>
           <View style={styles.logoBox}>
-            <Ionicons name="person-add" size={24} color={theme.colors.primary} />
+            <Ionicons
+              name="person-add"
+              size={24}
+              color={theme.colors.primary}
+            />
           </View>
 
           <Text style={styles.appName}>Create Account</Text>
-          <Text style={styles.tagline}>Join the safest IoT health tracking</Text>
+          <Text style={styles.tagline}>
+            Join the safest IoT health tracking
+          </Text>
         </View>
 
         {/* Glass Card */}
@@ -111,7 +141,8 @@ export default function SignupScreen() {
 
           <Pressable onPress={() => router.push("/(auth)/login")}>
             <Text style={styles.link}>
-              Already have an account? <Text style={styles.linkBold}>Login</Text>
+              Already have an account?{" "}
+              <Text style={styles.linkBold}>Login</Text>
             </Text>
           </Pressable>
 

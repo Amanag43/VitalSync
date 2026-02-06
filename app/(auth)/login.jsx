@@ -1,5 +1,5 @@
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
   Alert,
@@ -9,16 +9,12 @@ import {
   Text,
   View,
 } from "react-native";
-import { auth } from "../../firebaseConfig";
-
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { theme } from "../../src/theme/theme";
-
-import * as Haptics from "expo-haptics";
 import AnimatedCard from "../../src/components/AnimatedCard";
 import AppInput from "../../src/components/AppInput";
 import PressableScale from "../../src/components/PressableScale";
+import { useAuthStore } from "../../src/store/authStore";
+import { theme } from "../../src/theme/theme";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -27,17 +23,57 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password)
-      return Alert.alert("Error", "All fields are required");
+    if (!email || !password) {
+      Alert.alert("Error", "All fields are required");
+      return;
+    }
 
     try {
       setLoading(true);
-      await Haptics.selectionAsync();
-      await signInWithEmailAndPassword(auth, email, password);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("Login Failed", error.message);
+
+      // 1️⃣ LOGIN → GET TOKEN
+      const res = await fetch(
+        "http://192.168.1.9/iotjacket-api-php/api/v1/auth/login.php",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        },
+      );
+
+      const json = await res.json();
+
+      if (!json.success) {
+        Alert.alert("Login Failed", json.message);
+        return;
+      }
+
+      const token = json.token;
+
+      // 2️⃣ FETCH USER USING TOKEN
+      const meRes = await fetch(
+        "http://192.168.1.9/iotjacket-api-php/api/v1/auth/me.php",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const meJson = await meRes.json();
+
+      if (!meJson.success) {
+        Alert.alert("Error", "Failed to fetch user");
+        return;
+      }
+
+      // 3️⃣ SAVE AUTH (TOKEN + USER)
+      useAuthStore.getState().setAuth(token, meJson.user);
+
+      // 4️⃣ NAVIGATE
+      router.replace("/(app)/home");
+    } catch (err) {
+      Alert.alert("Error", "Server not reachable");
     } finally {
       setLoading(false);
     }

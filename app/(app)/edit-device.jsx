@@ -1,18 +1,27 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
-
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from "../firebaseConfig";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import AppButton from "../src/components/AppButton";
-import AppInput from "../src/components/AppInput";
-import AppScreen from "../src/components/AppScreen";
-import { theme } from "../src/theme/theme";
+import AppButton from "../../src/components/AppButton";
+import AppInput from "../../src/components/AppInput";
+import AppScreen from "../../src/components/AppScreen";
+import { theme } from "../../src/theme/theme";
+
+import { useAuthStore } from "../../src/store/authStore";
 
 export default function EditDevice() {
   const { deviceId } = useLocalSearchParams();
+  const token = useAuthStore((s) => s.token);
+
+  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,26 +34,34 @@ export default function EditDevice() {
   const [allergies, setAllergies] = useState("");
   const [jacketId, setJacketId] = useState("");
 
-  // ✅ Fetch Device data
+  // ✅ FETCH DEVICE
   useEffect(() => {
+    if (!token || !deviceId) return;
+
     const fetchDevice = async () => {
       try {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
+        const res = await fetch(
+          `${API_BASE}/devices/details.php?id=${deviceId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
-        const ref = doc(db, "users", uid, "devices", deviceId);
-        const snap = await getDoc(ref);
+        const text = await res.text();
+        if (text.startsWith("<")) throw new Error("Server error");
 
-        if (!snap.exists()) {
+        const data = JSON.parse(text);
+        const d = data.device;
+
+        if (!d) {
           Alert.alert("Not Found", "Device not found");
           router.back();
           return;
         }
 
-        const d = snap.data();
-
         setDeviceName(d.deviceName || "");
-        setAge(d.age || "");
         setWeight(d.weight || "");
         setHeight(d.height || "");
         setBloodGroup(d.bloodGroup || "");
@@ -58,34 +75,39 @@ export default function EditDevice() {
     };
 
     fetchDevice();
-  }, [deviceId]);
+  }, [deviceId, token]);
 
-  // ✅ Save updates
+  // ✅ SAVE UPDATES
   const handleSave = async () => {
+    if (!deviceName.trim() || !jacketId.trim()) {
+      return Alert.alert("Error", "Device Name and Jacket ID are required");
+    }
+
     try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return Alert.alert("Error", "User not logged in");
-
-      if (!deviceName.trim() || !jacketId.trim()) {
-        return Alert.alert("Error", "Device Name and Jacket ID are required");
-      }
-
       setSaving(true);
 
-      const ref = doc(db, "users", uid, "devices", deviceId);
-
-      await updateDoc(ref, {
-        deviceName: deviceName.trim(),
-        age: age.trim(),
-        weight: weight.trim(),
-        height: height.trim(),
-        bloodGroup: bloodGroup.trim(),
-        allergies: allergies.trim(),
-        jacketId: jacketId.trim(),
-        updatedAt: new Date().toISOString(),
+      const res = await fetch(`${API_BASE}/devices/update.php`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          deviceId,
+          deviceName,
+          weight,
+          height,
+          bloodGroup,
+          allergies,
+          jacketId,
+        }),
       });
 
-      Alert.alert("✅ Updated", "Device updated successfully!");
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message);
+
+      Alert.alert("✅ Updated", "Device updated successfully");
       router.back();
     } catch (err) {
       Alert.alert("Update Failed", err.message);
@@ -99,13 +121,13 @@ export default function EditDevice() {
       <AppScreen>
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.primary} />
-          <Text style={{ color: theme.colors.muted, marginTop: 10, fontWeight: "700" }}>
-            Loading device...
-          </Text>
+          <Text style={styles.loadingText}>Loading device...</Text>
         </View>
       </AppScreen>
     );
   }
+
+  // ⬇️ KEEP YOUR EXISTING UI JSX BELOW (UNCHANGED)
 
   return (
     <AppScreen>

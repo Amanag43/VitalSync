@@ -10,38 +10,53 @@ import {
   View,
 } from "react-native";
 
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebaseConfig";
-
 import { Ionicons } from "@expo/vector-icons";
-import AppButton from "../src/components/AppButton";
-import AppScreen from "../src/components/AppScreen";
-import StatusPill from "../src/components/StatusPill";
-import { theme } from "../src/theme/theme";
+import AppButton from "../../src/components/AppButton";
+import AppScreen from "../../src/components/AppScreen";
+import StatusPill from "../../src/components/StatusPill";
+import { theme } from "../../src/theme/theme";
+
+import { useAuthStore } from "../../src/store/authStore";
 
 export default function DeviceDetails() {
   const { deviceId } = useLocalSearchParams();
+  const token = useAuthStore((s) => s.token);
 
   const [device, setDevice] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch device
+  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
+
   useEffect(() => {
+    if (!token || !deviceId) return;
+
     const fetchDevice = async () => {
       try {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return;
+        const res = await fetch(
+          `${API_BASE}/devices/details.php?id=${deviceId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
 
-        const ref = doc(db, "users", uid, "devices", deviceId);
-        const snap = await getDoc(ref);
+        const text = await res.text();
 
-        if (!snap.exists()) {
+        if (text.startsWith("<")) {
+          console.error("Server returned HTML:", text);
+          throw new Error("Server error");
+        }
+
+        const data = JSON.parse(text);
+
+        if (!res.ok || !data.device) {
           Alert.alert("Not Found", "Device not found");
           router.back();
           return;
         }
 
-        setDevice({ id: snap.id, ...snap.data() });
+        setDevice(data.device);
       } catch (err) {
         Alert.alert("Error", err.message);
       } finally {
@@ -50,12 +65,9 @@ export default function DeviceDetails() {
     };
 
     fetchDevice();
-  }, [deviceId]);
+  }, [deviceId, token]);
 
-  // ✅ status (later real-time backend can set online/offline)
-  const getStatus = () => {
-    return "online"; // online | offline | sos
-  };
+  const getStatus = () => "online";
 
   if (loading) {
     return (
@@ -77,6 +89,8 @@ export default function DeviceDetails() {
       </AppScreen>
     );
   }
+
+  // ⬇️ YOUR EXISTING UI CONTINUES BELOW (UNCHANGED)
 
   return (
     <AppScreen>
@@ -122,7 +136,7 @@ export default function DeviceDetails() {
             <View style={{ flex: 1 }}>
               <Text style={styles.deviceName}>{device.deviceName}</Text>
               <Text style={styles.deviceMeta}>
-                Jacket ID: {device.jacketId}
+                Jacket ID: {device.jacket_id}
               </Text>
             </View>
 
@@ -136,7 +150,7 @@ export default function DeviceDetails() {
               onPress={() =>
                 router.push({
                   pathname: "/map",
-                  params: { jacketId: device.jacketId },
+                  params: { jacketId: device.jacket_id },
                 })
               }
             >
@@ -198,7 +212,12 @@ export default function DeviceDetails() {
 
           <Pressable
             style={styles.actionItem}
-            onPress={() => router.push("/alerts")}
+            onPress={() =>
+              router.push({
+                pathname: "/alert",
+                params: { jacket_id: device.jacket_id },
+              })
+            }
           >
             <View
               style={[

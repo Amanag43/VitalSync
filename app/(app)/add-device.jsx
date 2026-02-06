@@ -9,48 +9,72 @@ import {
   View,
 } from "react-native";
 
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../firebaseConfig";
-
 import { Ionicons } from "@expo/vector-icons";
-import AppButton from "../src/components/AppButton";
-import AppInput from "../src/components/AppInput";
-import AppScreen from "../src/components/AppScreen";
-import { theme } from "../src/theme/theme";
+import AppButton from "../../src/components/AppButton";
+import AppInput from "../../src/components/AppInput";
+import AppScreen from "../../src/components/AppScreen";
+import { useAuthStore } from "../../src/store/authStore";
+import { theme } from "../../src/theme/theme";
 
 export default function AddDevice() {
+  const token = useAuthStore((s) => s.token);
+
   const [deviceName, setDeviceName] = useState("");
   const [jacketId, setJacketId] = useState("");
-
   const [age, setAge] = useState("");
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
   const [bloodGroup, setBloodGroup] = useState("");
   const [allergies, setAllergies] = useState("");
-
   const [saving, setSaving] = useState(false);
 
+  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
+
   const handleSave = async () => {
+    if (!token) {
+      Alert.alert("Error", "User not logged in");
+      return;
+    }
+
+    if (!deviceName.trim() || !jacketId.trim()) {
+      Alert.alert("Error", "Device Name and Jacket ID are required");
+      return;
+    }
+
     try {
-      const userId = auth.currentUser?.uid;
-      if (!userId) return Alert.alert("Error", "User not logged in");
-
-      if (!deviceName.trim() || !jacketId.trim()) {
-        return Alert.alert("Error", "Device Name and Jacket ID are required");
-      }
-
       setSaving(true);
 
-      await addDoc(collection(db, "users", userId, "devices"), {
-        deviceName: deviceName.trim(),
-        jacketId: jacketId.trim(),
-        age: age.trim(),
-        weight: weight.trim(),
-        height: height.trim(),
-        bloodGroup: bloodGroup.trim(),
-        allergies: allergies.trim(),
-        createdAt: serverTimestamp(),
+      const res = await fetch(`${API_BASE}/devices/add.php`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          deviceName: deviceName.trim(),
+          jacketId: jacketId.trim(),
+          age,
+          weight,
+          height,
+          bloodGroup,
+          allergies,
+        }),
       });
+
+      const text = await res.text();
+
+      if (text.startsWith("<")) {
+        console.error("Server returned HTML:", text);
+        Alert.alert("Server Error", "Backend error occurred");
+        return;
+      }
+
+      const data = JSON.parse(text);
+
+      if (!res.ok || data.success === false) {
+        Alert.alert("Failed", data.message || "Could not add device");
+        return;
+      }
 
       Alert.alert("✅ Added", "Device added successfully!");
       router.back();
