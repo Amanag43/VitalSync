@@ -13,7 +13,7 @@
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/></a>
   <a href="https://expo.dev/"><img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/></a>
   <a href="https://firebase.google.com/"><img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase"/></a>
-  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP"/></a>
+  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP_JWT-Auth-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP JWT"/></a>
   <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL"/></a>
 </p>
 
@@ -67,7 +67,7 @@ VitalSync pairs a **custom IoT wearable device** with a cross-platform mobile ap
 | 🔴 **Auto Emergency Dispatch** | Emergency state triggered automatically from wearable sensor data via Zustand global store |
 | 📍 **Real-Time GPS Tracking** | Continuous background location monitoring using `expo-location` |
 | 🏥 **Hospital Routing** | Optimal route calculation to nearest hospital using Mapbox Polyline + React Native Maps |
-| 🔐 **Google OAuth** | Secure sign-in via `expo-auth-session` + Firebase Auth, session persisted with AsyncStorage |
+| 🔐 **JWT Authentication** | Custom email/password auth against PHP REST API — Bearer token stored via Zustand + AsyncStorage, survives app restarts |
 | 📡 **IoT Device Sync** | Bi-directional communication with custom wearable hardware over REST |
 | 🔔 **Haptic Feedback** | Emergency alerts reinforced with device haptics via `expo-haptics` |
 | 💾 **Persistent Auth** | Session survives app restarts via Zustand `persist` middleware + AsyncStorage |
@@ -87,8 +87,8 @@ VitalSync pairs a **custom IoT wearable device** with a cross-platform mobile ap
 | State Management | Zustand v5 (persist middleware) |
 | Maps & Routing | React Native Maps + `@mapbox/polyline` |
 | Location | `expo-location` |
-| Authentication | `expo-auth-session` + Firebase Auth |
-| Storage | AsyncStorage (persisted auth sessions) |
+| Authentication | Custom PHP JWT (email/password) — `Bearer` token flow |
+| Storage | AsyncStorage (persisted auth via Zustand) |
 | UI | React Native Paper + React Native Elements |
 | Animations | React Native Reanimated v4 |
 | Gestures | React Native Gesture Handler |
@@ -98,10 +98,10 @@ VitalSync pairs a **custom IoT wearable device** with a cross-platform mobile ap
 ### Backend & Cloud
 | Category | Technology |
 |---|---|
-| REST API | PHP |
+| REST API | PHP (custom MVC API) |
 | Database | MySQL |
+| Auth | JWT — custom token issuance & validation |
 | Real-Time Sync | Firebase Firestore |
-| Auth Provider | Firebase Authentication (Google OAuth) |
 
 ---
 
@@ -111,11 +111,21 @@ VitalSync pairs a **custom IoT wearable device** with a cross-platform mobile ap
 VitalSync/
 │
 ├── app/                          # Expo Router — file-based screens
-│   ├── (auth)/                   # Auth flow (sign-in, sign-up)
-│   ├── (root)/                   # Protected app screens
-│   │   ├── dashboard/            # Vitals monitor & device status
-│   │   ├── emergency/            # SOS dispatch & active alerts
-│   │   └── map/                  # GPS tracking & hospital routing
+│   ├── (auth)/                   # Auth flow
+│   │   ├── login.jsx             # Google OAuth sign-in
+│   │   ├── signup.jsx            # New user registration
+│   │   └── _layout.jsx           # Auth stack layout
+│   ├── (app)/                    # Protected app screens
+│   │   ├── home.jsx              # Dashboard & vitals overview
+│   │   ├── alert.jsx             # Active emergency alert view
+│   │   ├── add-device.jsx        # Pair new IoT wearable
+│   │   ├── device-details.jsx    # Device status & sensor data
+│   │   └── edit-device.jsx       # Manage paired device
+│   ├── alerts.jsx                # Alert history log
+│   ├── contacts.jsx              # Emergency contacts management
+│   ├── map.jsx                   # GPS tracking & hospital routing
+│   ├── settings.jsx              # User preferences & app config
+│   ├── loading.jsx               # Auth hydration / splash
 │   └── _layout.tsx               # Root layout & navigation guards
 │
 ├── src/
@@ -142,7 +152,20 @@ VitalSync/
 └── package.json
 ```
 
-### State Architecture
+### Auth Flow
+```
+User enters email + password
+       ↓
+POST /api/v1/auth/login.php  →  PHP validates credentials
+       ↓
+Returns Bearer JWT token
+       ↓
+GET /api/v1/auth/me.php (Authorization: Bearer <token>)
+       ↓
+User object returned → saved to Zustand + AsyncStorage
+       ↓
+Persists across app restarts via Zustand persist middleware
+```
 
 VitalSync uses **Zustand** for lightweight global state with two core stores:
 
@@ -242,10 +265,17 @@ On anomaly detection, the device sends a trigger to the backend → Firebase Fir
 
 | Screen | Description |
 |---|---|
-| **Sign In** | Google OAuth via Firebase, session persisted across restarts |
-| **Dashboard** | Live vitals readout from IoT device, device connection status |
-| **Emergency** | Active SOS management, auto-triggered or manual dispatch |
-| **Map** | Real-time GPS tracking, nearest hospital route via Mapbox polyline |
+| **Login / Signup** | Email/password auth against PHP JWT API — token fetched, user hydrated via `/auth/me.php`, persisted in AsyncStorage |
+| **Home** | Live vitals dashboard, device connection status, quick SOS trigger |
+| **Alert** | Active emergency view — real-time status, dispatch progress |
+| **Alerts** | Full alert history log with timestamps and resolved status |
+| **Add Device** | Pair a new IoT wearable via device ID or discovery |
+| **Device Details** | Live sensor data readout — heart rate, accelerometer, GPS |
+| **Edit Device** | Rename, reconfigure, or unpair a wearable device |
+| **Map** | Real-time GPS tracking + nearest hospital routing via Mapbox polyline |
+| **Contacts** | Manage emergency contacts notified on SOS dispatch |
+| **Settings** | User preferences, notification config, account management |
+| **Loading** | Auth session hydration / splash screen on app start |
 
 ---
 
