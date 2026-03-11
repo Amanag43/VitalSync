@@ -38,7 +38,7 @@ export default function LoadingScreen() {
         </View>
       </Animated.View>
 
-      <Text style={styles.title}>Ninfet Jacket</Text>
+      <Text style={styles.title}>VitalSync</Text>
       <Text style={styles.sub}>Securing health in real-time</Text>
 
       <View style={styles.loadingRow}>

@@ -32,7 +32,7 @@ export default function SignupScreen() {
       setLoading(true);
 
       const res = await fetch(
-        "http://192.168.1.9/iotjacket-api-php/api/v1/auth/signup.php",
+        "http://192.168.1.16/iotjacket-api-php/api/v1/auth/signup.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -17,7 +17,7 @@ import { useAuthStore } from "../src/store/authStore";
 import { useEmergencyStore } from "../src/store/emergencyStore";
 import { theme } from "../src/theme/theme";
 
-const BACKEND_URL = "http://192.168.1.9/iotjacket-api-php/api/v1";
+const BACKEND_URL = "http://192.168.1.16/iotjacket-api-php/api/v1";
 
 /* ───────── helpers ───────── */
 const getHealthColor = (type, value) => {

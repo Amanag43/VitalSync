@@ -28,7 +28,7 @@ export default function AddDevice() {
   const [allergies, setAllergies] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
+  const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
 
   const handleSave = async () => {
     if (!token) {
@@ -95,7 +95,7 @@ export default function AddDevice() {
 
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Add Device</Text>
-          <Text style={styles.subTitle}>Bind your Ninfet Jacket securely</Text>
+          <Text style={styles.subTitle}>Bind your Device securely</Text>
         </View>
 
         <View style={{ width: 42 }} />

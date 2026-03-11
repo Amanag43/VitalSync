@@ -2,18 +2,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Pressable,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
 
 import AppScreen from "../../src/components/AppScreen";
 import { useAuthStore } from "../../src/store/authStore";
 import { theme } from "../../src/theme/theme";
 
-const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
+const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
 
 export default function AlertDetailScreen() {
   const { alertId } = useLocalSearchParams();

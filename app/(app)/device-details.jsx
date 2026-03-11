@@ -25,7 +25,7 @@ export default function DeviceDetails() {
   const [device, setDevice] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
+  const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
 
   useEffect(() => {
     if (!token || !deviceId) return;
@@ -102,7 +102,7 @@ export default function DeviceDetails() {
 
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Device Details</Text>
-          <Text style={styles.subTitle}>Track & manage your Ninfet Jacket</Text>
+          <Text style={styles.subTitle}>Track & manage your Device</Text>
         </View>
 
         <Pressable

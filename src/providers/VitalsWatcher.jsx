@@ -3,7 +3,7 @@ import { Alert } from "react-native";
 import { useEmergencyStore } from "../store/emergencyStore";
 import { useVitalsStore } from "../store/vitalsStore";
 
-const BACKEND_URL = "http://192.168.1.9/iotjacket-api-php/api/v1";
+const BACKEND_URL = "http://192.168.1.16/iotjacket-api-php/api/v1";
 
 export default function VitalsWatcher() {
   const setVitals = useVitalsStore((s) => s.setVitals);
