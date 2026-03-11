@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "ninfet-smart-textile",
-    "displayName": "Ninfet Smart Textile",
-    "slug": "ninfet-smart-textile",
+    "name": "VitalSync",
+    "displayName": "VitalSync",
+    "slug": "VitalSync",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -13,8 +13,13 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.ninfet.smarttextile",
-      "permissions": ["INTERNET"],
+      "package": "com.VitalSync",
+      "permissions": [
+        "INTERNET",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_BODY_TEMPERATURE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

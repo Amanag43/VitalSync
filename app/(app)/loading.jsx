@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { theme } from "../src/theme/theme";
+import { theme } from "../../src/theme/theme";
 
 export default function LoadingScreen() {
   const glow = useSharedValue(0.35);
@@ -38,7 +38,7 @@ export default function LoadingScreen() {
         </View>
       </Animated.View>
 
-      <Text style={styles.title}>Ninfet Jacket</Text>
+      <Text style={styles.title}>VitalSync</Text>
       <Text style={styles.sub}>Securing health in real-time</Text>
 
       <View style={styles.loadingRow}>
@@ -130,3 +130,4 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+

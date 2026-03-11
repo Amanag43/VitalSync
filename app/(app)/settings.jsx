@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import AppScreen from "../src/components/AppScreen";
-import { useAuthStore } from "../src/store/authStore";
-import { theme } from "../src/theme/theme";
+import AppScreen from "../../src/components/AppScreen";
+import { useAuthStore } from "../../src/store/authStore";
+import { theme } from "../../src/theme/theme";
 
 export default function SettingsScreen() {
   const clearAuth = useAuthStore((s) => s.clearAuth);

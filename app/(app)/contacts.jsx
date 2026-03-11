@@ -1,8 +1,12 @@
+// import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,68 +14,91 @@ import {
   View,
 } from "react-native";
 
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  serverTimestamp,
-} from "firebase/firestore";
-import { auth, db } from "../firebaseConfig";
+import AppScreen from "../../src/components/AppScreen";
+import { useAuthStore } from "../../src/store/authStore";
+import { theme } from "../../src/theme/theme";
 
-import { Ionicons } from "@expo/vector-icons";
-import AppScreen from "../src/components/AppScreen";
-import { theme } from "../src/theme/theme";
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 export default function ContactsScreen() {
   const [contacts, setContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [relationship, setRelationship] = useState("");
 
-  // ✅ FETCH CONTACTS REALTIME
-  useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
+  // ✅ Bearer token from Zustand (replaces Firebase auth.currentUser)
+  const token = useAuthStore((s) => s.token);
 
-    const ref = collection(db, "users", uid, "contacts");
-
-    const unsub = onSnapshot(ref, (snap) => {
-      const list = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-
-      // Primary contact first
-      list.sort((a, b) => (b.isPrimary === true) - (a.isPrimary === true));
-
-      setContacts(list);
-    });
-
-    return () => unsub();
-  }, []);
-
-  // ✅ ADD CONTACT
-  const handleAddContact = async () => {
+  // ✅ FETCH CONTACTS from PHP API
+  const fetchContacts = useCallback(async () => {
     try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return Alert.alert("Error", "User not logged in");
+      const res = await fetch(`${API_BASE}/contacts/list.php`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      if (!name.trim() || !phone.trim()) {
-        return Alert.alert("Error", "Name and Phone are required");
+      const json = await res.json();
+
+      if (!json.success) {
+        Alert.alert("Error", json.message || "Failed to load contacts");
+        return;
       }
 
-      // First contact becomes primary automatically
-      const isPrimary = contacts.length === 0;
+      setContacts(json.contacts);
+    } catch (err) {
+      Alert.alert("Error", "Could not reach server");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [token]);
 
-      await addDoc(collection(db, "users", uid, "contacts"), {
-        name: name.trim(),
-        phone: phone.trim(),
-        relationship: relationship.trim(),
-        isPrimary,
-        createdAt: serverTimestamp(),
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchContacts();
+  };
+
+  // ✅ ADD CONTACT via PHP API
+  const handleAddContact = async () => {
+    if (!name.trim() || !phone.trim()) {
+      return Alert.alert("Error", "Name and Phone are required");
+    }
+
+    try {
+      setSaving(true);
+
+      const res = await fetch(`${API_BASE}/contacts/add.php`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          phone: phone.trim(),
+          relationship: relationship.trim(),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!json.success) {
+        Alert.alert("Error", json.message || "Failed to save contact");
+        return;
+      }
+
+      // Add to local state immediately (no need to refetch)
+      setContacts((prev) => {
+        // If this is the first contact, mark it primary in UI
+        const newContact = { ...json.contact };
+        return [...prev, newContact];
       });
 
       setName("");
@@ -80,26 +107,42 @@ export default function ContactsScreen() {
 
       Alert.alert("✅ Saved", "Contact added successfully!");
     } catch (err) {
-      Alert.alert("Failed", err.message);
+      Alert.alert("Error", "Could not reach server");
+    } finally {
+      setSaving(false);
     }
   };
 
-  // ✅ DELETE CONTACT
+  // ✅ DELETE CONTACT via PHP API
   const handleDeleteContact = async (id) => {
     try {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return;
+      const res = await fetch(`${API_BASE}/contacts/delete.php`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id }),
+      });
 
-      await deleteDoc(doc(db, "users", uid, "contacts", id));
+      const json = await res.json();
+
+      if (!json.success) {
+        Alert.alert("Error", json.message || "Failed to delete contact");
+        return;
+      }
+
+      // Remove from local state immediately
+      setContacts((prev) => prev.filter((c) => c.id !== id));
       Alert.alert("Deleted", "Contact removed ✅");
     } catch (err) {
-      Alert.alert("Delete Failed", err.message);
+      Alert.alert("Error", "Could not reach server");
     }
   };
 
   return (
     <AppScreen>
-      {/* ✅ HEADER */}
+      {/* HEADER */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
@@ -114,24 +157,37 @@ export default function ContactsScreen() {
           onPress={() =>
             Alert.alert(
               "SOS Contacts",
-              "These contacts can be used to send SOS calls/messages in future ✅"
+              "These contacts will be notified when SOS is triggered ✅",
             )
           }
           style={styles.iconBtn}
         >
-          <Ionicons name="information-circle" size={18} color={theme.colors.text} />
+          <Ionicons
+            name="information-circle"
+            size={18}
+            color={theme.colors.text}
+          />
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ✅ ADD FORM CARD */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
+      >
+        {/* ADD FORM CARD */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Add Contact</Text>
 
           <Label text="Full Name" />
           <TextInput
             style={styles.input}
-            placeholder="Aman’s Father"
+            placeholder="Aman's Father"
             placeholderTextColor="rgba(255,255,255,0.35)"
             value={name}
             onChangeText={setName}
@@ -156,13 +212,19 @@ export default function ContactsScreen() {
             onChangeText={setRelationship}
           />
 
-          <Pressable style={styles.saveBtn} onPress={handleAddContact}>
+          <Pressable
+            style={[styles.saveBtn, { opacity: saving ? 0.7 : 1 }]}
+            onPress={handleAddContact}
+            disabled={saving}
+          >
             <Ionicons name="add-circle" size={18} color="#fff" />
-            <Text style={styles.saveText}>Save Contact</Text>
+            <Text style={styles.saveText}>
+              {saving ? "Saving..." : "Save Contact"}
+            </Text>
           </Pressable>
         </View>
 
-        {/* ✅ CONTACT LIST */}
+        {/* CONTACT LIST */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Saved Contacts</Text>
           <Text style={styles.sectionSmall}>
@@ -170,10 +232,19 @@ export default function ContactsScreen() {
           </Text>
         </View>
 
-        {contacts.length === 0 ? (
+        {loading ? (
+          <ActivityIndicator
+            color={theme.colors.primary}
+            style={{ marginTop: 20 }}
+          />
+        ) : contacts.length === 0 ? (
           <View style={styles.emptyBox}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="call-outline" size={26} color={theme.colors.primary} />
+              <Ionicons
+                name="call-outline"
+                size={26}
+                color={theme.colors.primary}
+              />
             </View>
             <Text style={styles.emptyTitle}>No Contacts Added</Text>
             <Text style={styles.emptySub}>
@@ -191,16 +262,20 @@ export default function ContactsScreen() {
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
                     <Text style={styles.contactName}>{c.name}</Text>
-
-                    {c.isPrimary ? (
+                    {c.is_primary ? (
                       <View style={styles.primaryBadge}>
                         <Text style={styles.primaryText}>PRIMARY</Text>
                       </View>
                     ) : null}
                   </View>
-
                   <Text style={styles.contactPhone}>{c.phone}</Text>
                   {c.relationship ? (
                     <Text style={styles.contactRel}>{c.relationship}</Text>
@@ -214,7 +289,7 @@ export default function ContactsScreen() {
                   onPress={() =>
                     Alert.alert(
                       "Call feature",
-                      "We will enable real call + SMS later ✅"
+                      "Real call + SMS coming soon ✅",
                     )
                   }
                 >
@@ -225,21 +300,21 @@ export default function ContactsScreen() {
                 <Pressable
                   style={styles.deleteBtn}
                   onPress={() =>
-                    Alert.alert(
-                      "Delete Contact?",
-                      `Remove ${c.name}?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Delete",
-                          style: "destructive",
-                          onPress: () => handleDeleteContact(c.id),
-                        },
-                      ]
-                    )
+                    Alert.alert("Delete Contact?", `Remove ${c.name}?`, [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => handleDeleteContact(c.id),
+                      },
+                    ])
                   }
                 >
-                  <Ionicons name="trash" size={14} color={theme.colors.danger} />
+                  <Ionicons
+                    name="trash"
+                    size={14}
+                    color={theme.colors.danger}
+                  />
                   <Text style={styles.deleteText}>Delete</Text>
                 </Pressable>
               </View>
@@ -277,7 +352,6 @@ const styles = StyleSheet.create({
   },
 
   title: { color: theme.colors.text, fontSize: 20, fontWeight: "900" },
-
   subTitle: {
     marginTop: 2,
     color: theme.colors.muted,
@@ -331,19 +405,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  saveText: {
-    color: "#fff",
-    fontWeight: "900",
-    fontSize: 14,
-  },
+  saveText: { color: "#fff", fontWeight: "900", fontSize: 14 },
 
-  sectionHeader: {
-    marginTop: 4,
-    marginBottom: 10,
-  },
-
+  sectionHeader: { marginTop: 4, marginBottom: 10 },
   sectionTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
-  sectionSmall: { marginTop: 4, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  sectionSmall: {
+    marginTop: 4,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   emptyBox: {
     backgroundColor: theme.colors.card,
@@ -385,11 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  contactTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
+  contactTop: { flexDirection: "row", alignItems: "center", gap: 12 },
 
   avatar: {
     width: 48,
@@ -402,15 +469,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  avatarText: {
-    color: theme.colors.text,
-    fontWeight: "900",
-    fontSize: 16,
-  },
+  avatarText: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
 
   contactName: { color: theme.colors.text, fontWeight: "900", fontSize: 14 },
-  contactPhone: { marginTop: 4, color: theme.colors.muted, fontWeight: "800", fontSize: 12 },
-  contactRel: { marginTop: 3, color: theme.colors.muted, fontWeight: "700", fontSize: 12 },
+  contactPhone: {
+    marginTop: 4,
+    color: theme.colors.muted,
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  contactRel: {
+    marginTop: 3,
+    color: theme.colors.muted,
+    fontWeight: "700",
+    fontSize: 12,
+  },
 
   primaryBadge: {
     backgroundColor: theme.colors.successSoft,
@@ -423,11 +496,7 @@ const styles = StyleSheet.create({
 
   primaryText: { color: theme.colors.success, fontWeight: "900", fontSize: 10 },
 
-  actionRow: {
-    marginTop: 14,
-    flexDirection: "row",
-    gap: 10,
-  },
+  actionRow: { marginTop: 14, flexDirection: "row", gap: 10 },
 
   callBtn: {
     flex: 1,
@@ -455,8 +524,5 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  deleteText: {
-    color: theme.colors.danger,
-    fontWeight: "900",
-  },
+  deleteText: { color: theme.colors.danger, fontWeight: "900" },
 });

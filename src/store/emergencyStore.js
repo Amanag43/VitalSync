@@ -1,24 +1,49 @@
 import { create } from "zustand";
 
 export const useEmergencyStore = create((set, get) => ({
-  // 🔴 Emergency State
+  // 🔴 Core State
   emergencyActive: false,
   emergencyReason: null,
+  emergencyStartedAt: null,
+
+  // 📍 Context Data
+  lastVitals: null,
+  lastLocation: null,
 
   // 🚨 Start Emergency
-  startEmergency: (reason) =>
+  startEmergency: (reason, vitals = null, location = null) => {
+    const alreadyActive = get().emergencyActive;
+
+    // ❗ Prevent duplicate triggers
+    if (alreadyActive) return;
+
     set({
       emergencyActive: true,
       emergencyReason: reason,
-    }),
+      emergencyStartedAt: new Date(),
+      lastVitals: vitals,
+      lastLocation: location,
+    });
 
-  // ✅ Stop / Clear Emergency
+    console.log("🚨 Emergency Started:", reason);
+  },
+
+  // ✅ Stop Emergency
   stopEmergency: () =>
     set({
       emergencyActive: false,
       emergencyReason: null,
+      emergencyStartedAt: null,
+      lastVitals: null,
+      lastLocation: null,
     }),
 
-  // 🧠 Helper (optional, safe)
+  // 🧠 Helpers
   isEmergency: () => get().emergencyActive,
+  getEmergencyData: () => ({
+    reason: get().emergencyReason,
+    startedAt: get().emergencyStartedAt,
+    vitals: get().lastVitals,
+    location: get().lastLocation,
+  }),
 }));

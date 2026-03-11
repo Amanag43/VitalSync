@@ -31,7 +31,7 @@ export default function Home() {
   const emergencyReason = useEmergencyStore((s) => s.emergencyReason);
   const stopEmergency = useEmergencyStore((s) => s.stopEmergency);
 
-  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
+  const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
 
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);

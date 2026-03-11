@@ -1,1 +1,1 @@
-export const API_BASE = "https://192.168.1.9/iotjacket-api-php/api/v1";
+export const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;

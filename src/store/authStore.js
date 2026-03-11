@@ -29,7 +29,12 @@ export const useAuthStore = create(
         set({
           hydrated: true,
         }),
+      getUserId: () => {
+              const user = get().user;
+              return user?.id || user?.user_id || null;
+            },
     }),
+
     {
       name: "auth-storage",
       storage: {

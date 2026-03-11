@@ -33,7 +33,7 @@ export default function LoginScreen() {
 
       // 1️⃣ LOGIN → GET TOKEN
       const res = await fetch(
-        "http://192.168.1.9/iotjacket-api-php/api/v1/auth/login.php",
+        "http://192.168.1.16/iotjacket-api-php/api/v1/auth/login.php",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -52,7 +52,7 @@ export default function LoginScreen() {
 
       // 2️⃣ FETCH USER USING TOKEN
       const meRes = await fetch(
-        "http://192.168.1.9/iotjacket-api-php/api/v1/auth/me.php",
+        "http://192.168.1.16/iotjacket-api-php/api/v1/auth/me.php",
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -103,7 +103,7 @@ export default function LoginScreen() {
               />
             </View>
 
-            <Text style={styles.appName}>Ninfet Smart Textile</Text>
+            <Text style={styles.appName}>VitalSync</Text>
             <Text style={styles.tagline}>Health • SOS • Live Tracking</Text>
           </View>
         </AnimatedCard>
