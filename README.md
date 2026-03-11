@@ -1,50 +1,293 @@
-# Welcome to your Expo app 👋
+<div align="center">
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+<br/>
 
-## Get started
+<img src="assets/images/logo.png" alt="VitalSync" width="100"/>
 
-1. Install dependencies
+<h1>VitalSync</h1>
 
-   ```bash
-   npm install
-   ```
+<p><strong>Real-Time IoT Safety & Emergency Response Platform</strong></p>
 
-2. Start the app
+<p>
+  <a href="https://reactnative.dev/"><img src="https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React Native"/></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/></a>
+  <a href="https://expo.dev/"><img src="https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white" alt="Expo"/></a>
+  <a href="https://firebase.google.com/"><img src="https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black" alt="Firebase"/></a>
+  <a href="https://www.php.net/"><img src="https://img.shields.io/badge/PHP-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP"/></a>
+  <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL"/></a>
+</p>
 
-   ```bash
-   npx expo start
-   ```
+<p>
+  <img src="https://img.shields.io/github/stars/Amanag43/VitalSync?style=flat-square&color=yellow" alt="Stars"/>
+  <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-green?style=flat-square" alt="Platform"/>
+  <img src="https://img.shields.io/badge/Status-Active%20Development-blue?style=flat-square" alt="Status"/>
+</p>
 
-In the output, you'll find options to open the app in a
+<br/>
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+> **A production IoT safety platform that bridges the gap between a safety incident and immediate emergency response — in seconds.**
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+<br/>
 
-## Get a fresh project
+</div>
 
-When you're ready, run:
+---
 
-```bash
-npm run reset-project
+## 📖 Table of Contents
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Architecture](#-architecture)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [Hardware Integration](#-hardware-integration)
+- [App Screens](#-app-screens)
+- [Roadmap](#-roadmap)
+- [Author](#-author)
+
+---
+
+## 🧠 Overview
+
+When a safety incident occurs — a fall, a cardiac event, or a lone worker in distress — the critical window between incident and response is often lost. **VitalSync closes that gap.**
+
+VitalSync pairs a **custom IoT wearable device** with a cross-platform mobile app to:
+1. Continuously monitor the user's vitals and location
+2. Automatically trigger an emergency alert on anomaly detection
+3. Share live GPS coordinates with emergency contacts and responders
+4. Calculate and display the fastest route to the nearest hospital — all in real time
+
+---
+
+## ✨ Features
+
+| Feature | Description |
+|---|---|
+| 🔴 **Auto Emergency Dispatch** | Emergency state triggered automatically from wearable sensor data via Zustand global store |
+| 📍 **Real-Time GPS Tracking** | Continuous background location monitoring using `expo-location` |
+| 🏥 **Hospital Routing** | Optimal route calculation to nearest hospital using Mapbox Polyline + React Native Maps |
+| 🔐 **Google OAuth** | Secure sign-in via `expo-auth-session` + Firebase Auth, session persisted with AsyncStorage |
+| 📡 **IoT Device Sync** | Bi-directional communication with custom wearable hardware over REST |
+| 🔔 **Haptic Feedback** | Emergency alerts reinforced with device haptics via `expo-haptics` |
+| 💾 **Persistent Auth** | Session survives app restarts via Zustand `persist` middleware + AsyncStorage |
+| 📊 **Vitals Dashboard** | Live sensor data streamed from the IoT wearable |
+| 🌐 **Cross-Platform** | Runs on Android & iOS via Expo SDK 54 |
+
+---
+
+## 🛠 Tech Stack
+
+### Mobile App
+| Category | Technology |
+|---|---|
+| Framework | React Native 0.81 (Expo SDK 54) |
+| Language | TypeScript + JavaScript |
+| Navigation | Expo Router v6 (file-based) + React Navigation |
+| State Management | Zustand v5 (persist middleware) |
+| Maps & Routing | React Native Maps + `@mapbox/polyline` |
+| Location | `expo-location` |
+| Authentication | `expo-auth-session` + Firebase Auth |
+| Storage | AsyncStorage (persisted auth sessions) |
+| UI | React Native Paper + React Native Elements |
+| Animations | React Native Reanimated v4 |
+| Gestures | React Native Gesture Handler |
+| Bottom Sheet | `@gorhom/bottom-sheet` |
+| Haptics | `expo-haptics` |
+
+### Backend & Cloud
+| Category | Technology |
+|---|---|
+| REST API | PHP |
+| Database | MySQL |
+| Real-Time Sync | Firebase Firestore |
+| Auth Provider | Firebase Authentication (Google OAuth) |
+
+---
+
+## 🏗 Architecture
+
+```
+VitalSync/
+│
+├── app/                          # Expo Router — file-based screens
+│   ├── (auth)/                   # Auth flow (sign-in, sign-up)
+│   ├── (root)/                   # Protected app screens
+│   │   ├── dashboard/            # Vitals monitor & device status
+│   │   ├── emergency/            # SOS dispatch & active alerts
+│   │   └── map/                  # GPS tracking & hospital routing
+│   └── _layout.tsx               # Root layout & navigation guards
+│
+├── src/
+│   ├── components/               # Shared UI components
+│   ├── config/                   # API base URLs, Firebase init, constants
+│   ├── providers/                # Context providers (theme, auth)
+│   ├── store/
+│   │   ├── authStore.js          # Auth state (token, user, hydration)
+│   │   └── emergencyStore.js     # Emergency state machine
+│   ├── theme/                    # Design tokens (colors, typography, spacing)
+│   └── utils/                    # Helper functions, formatters
+│
+├── components/                   # Root-level reusable components
+├── constants/                    # App-wide enums & config values
+├── hooks/
+│   └── useGoogleAuth.js          # Google OAuth hook
+├── assets/
+│   └── images/                   # App icons, splash, logos
+│
+├── .env.example                  # Environment variable template
+├── App.js                        # Expo Router entry point
+├── app.json                      # Expo configuration
+├── tsconfig.json                 # TypeScript configuration
+└── package.json
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### State Architecture
 
-## Learn more
+VitalSync uses **Zustand** for lightweight global state with two core stores:
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+┌──────────────────────────┐     ┌──────────────────────────┐
+│      useAuthStore         │     │    useEmergencyStore      │
+│──────────────────────────│     │──────────────────────────│
+│ token                    │     │ emergencyActive: boolean  │
+│ user                     │     │ emergencyReason: string   │
+│ isLoggedIn               │     │──────────────────────────│
+│ hydrated                 │     │ startEmergency(reason)    │
+│──────────────────────────│     │ stopEmergency()           │
+│ setAuth(token, user)     │     │ isEmergency()             │
+│ clearAuth()              │     └──────────────────────────┘
+│ setHydrated()            │
+│──────────────────────────│
+│ Persisted via            │
+│ AsyncStorage             │
+└──────────────────────────┘
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## 🚀 Getting Started
 
-Join our community of developers creating universal apps.
+### Prerequisites
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Node.js >= 18
+- Expo CLI — `npm install -g expo-cli`
+- Android Studio (Android) or Xcode (iOS)
+- Firebase project with **Auth** and **Firestore** enabled
+- PHP server with MySQL (for backend REST API)
+
+### Installation
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Amanag43/VitalSync.git
+cd VitalSync
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment variables
+cp .env.example .env
+# Edit .env with your Firebase credentials and API URL
+
+# 4. Start development server
+npx expo start
+
+# Run on specific platform
+npx expo run:android
+npx expo run:ios
+```
+
+---
+
+## 🔑 Environment Variables
+
+Create a `.env` file in the root — **never commit this file.**
+
+```env
+# Firebase
+EXPO_PUBLIC_FIREBASE_API_KEY=your_api_key
+EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+EXPO_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# Backend REST API
+EXPO_PUBLIC_API_BASE_URL=https://your-php-server.com/api
+
+# Google OAuth
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+> See `.env.example` for the full template.
+
+---
+
+## 📡 Hardware Integration
+
+VitalSync is designed to pair with a **custom IoT wearable device**. The wearable communicates with the app via the PHP REST API and captures:
+
+- 💓 **Heart Rate (BPM)** — continuous vitals monitoring
+- 🏃 **Accelerometer** — fall and impact detection
+- 📍 **GPS** — hardware-level location as a phone fallback
+
+On anomaly detection, the device sends a trigger to the backend → Firebase Firestore updates → the app's `emergencyStore` activates in real time → emergency dispatch flow begins automatically.
+
+> 🤝 Active hardware partnership outreach is ongoing. Interested in collaborating? See contact info below.
+
+---
+
+## 📱 App Screens
+
+| Screen | Description |
+|---|---|
+| **Sign In** | Google OAuth via Firebase, session persisted across restarts |
+| **Dashboard** | Live vitals readout from IoT device, device connection status |
+| **Emergency** | Active SOS management, auto-triggered or manual dispatch |
+| **Map** | Real-time GPS tracking, nearest hospital route via Mapbox polyline |
+
+---
+
+## 🔮 Roadmap
+
+- [ ] ML-based anomaly detection on vitals stream
+- [ ] Multi-user group monitoring (family / team safety)
+- [ ] Offline mode with local alert queuing
+- [ ] Direct integration with hospital dispatch APIs
+- [ ] Apple Watch / Wear OS companion app
+- [ ] Web-based admin dashboard for fleet/team managers
+
+---
+
+## 🤝 Contributing
+
+Contributions and feature requests are welcome! Please open an issue first to discuss proposed changes.
+
+```bash
+git checkout -b feature/your-feature
+git commit -m "feat: describe your change"
+git push origin feature/your-feature
+# Then open a Pull Request
+```
+
+---
+
+## 👤 Author
+
+**Aman Agarwal** — B.Tech ECE @ MAIT, Delhi
+
+[![GitHub](https://img.shields.io/badge/GitHub-Amanag43-181717?style=flat-square&logo=github)](https://github.com/Amanag43)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Aman_Agarwal-0A66C2?style=flat-square&logo=linkedin)](https://linkedin.com/in/aman-agarwal-396921245)
+
+---
+
+## 📄 License
+
+This project is under active commercial development. All rights reserved © 2025 Aman Agarwal.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ — connecting IoT hardware to human safety</sub>
+</div>
