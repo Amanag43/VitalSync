@@ -17,7 +17,7 @@ import AppScreen from "../../src/components/AppScreen";
 import { useAuthStore } from "../../src/store/authStore";
 import { theme } from "../../src/theme/theme";
 
-const BASE_URL = "http://YOUR_IP:5000/api/contacts";
+const BASE_URL = "http://192.168.1.11:5000/api/contacts";
 
 export default function ContactsScreen() {
   const [contacts, setContacts] = useState([]);

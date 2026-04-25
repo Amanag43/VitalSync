@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { getDevices, getAlerts } from "../../src/services/apiService";
 
 import AppScreen from "../../src/components/AppScreen";
 import BMICard from "../../src/components/BMICard";
@@ -24,14 +25,12 @@ import { theme } from "../../src/theme/theme";
 
 export default function Home() {
   const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
   const clearAuth = useAuthStore((s) => s.clearAuth);
-
   const emergencyActive = useEmergencyStore((s) => s.emergencyActive);
   const emergencyReason = useEmergencyStore((s) => s.emergencyReason);
   const stopEmergency = useEmergencyStore((s) => s.stopEmergency);
 
-  const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
+  const BASE_URL = "http://192.168.1.11:5000";
 
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,81 +38,45 @@ export default function Home() {
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
 
-  // ✅ FETCH DEVICES ONCE TOKEN EXISTS
-  useFocusEffect(
-    useCallback(() => {
-      if (!token) return;
-      fetchDevices();
-      fetchAlerts();
-    }, [token]),
-  );
+ useFocusEffect(
+   useCallback(() => {
+     const fetchData = async () => {
+       const userId = user?.id;
+       if (!userId) return;
 
-  const fetchDevices = async () => {
-    try {
-      setLoading(true);
+       try {
+         setLoading(true);
+         setAlertsLoading(true);
 
+         const deviceData = await getDevices(userId);
+         setDevices(deviceData || []);
 
+         const alertData = await getAlerts(userId);
+         setAlerts(alertData || []);
 
-      const text = await res.text();
+       } catch (err) {
+         console.log("Fetch error:", err.message);
+       } finally {
+         setLoading(false);
+         setAlertsLoading(false);
+       }
+     };
 
-      // backend error safety
-      if (text.startsWith("<")) {
-        console.error("Server returned HTML:", text);
-        return;
-      }
+     fetchData();
+   }, [user?.id])
+ );
 
-      const data = JSON.parse(text);
-      setDevices(data.devices || []);
-    } catch (err) {
-      console.log("Fetch devices error:", err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  const fetchAlerts = async () => {
-    try {
-      setAlertsLoading(true);
+const handleDeleteDevice = async (deviceId) => {
+  try {
+    await fetch(`${BASE_URL}/devices/${deviceId}`, {
+      method: "DELETE",
+    });
 
-
-      const text = await res.text();
-      if (text.startsWith("<")) return;
-
-      const data = JSON.parse(text);
-      if (data.success) {
-        setAlerts(data.alerts.slice(0, 3)); // 👈 only latest 3
-      }
-    } catch (e) {
-      console.log("Home alert fetch error", e.message);
-    } finally {
-      setAlertsLoading(false);
-    }
-  };
-
-  // ✅ LOGOUT (ONLY STATE CHANGE)
-  useEffect(() => {
-    if (!token) {
-      router.replace("/(auth)/login");
-    }
-  }, [token]);
-  const handleLogout = () => {
-    clearAuth();
-    setDevices([]);
-  };
-
-  // ✅ DELETE DEVICE
-  const handleDeleteDevice = async (deviceId) => {
-    try {
-
-
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-
-      setDevices((prev) => prev.filter((d) => d.id !== deviceId));
-    } catch (err) {
-      Alert.alert("Delete Failed", err.message);
-    }
-  };
+    setDevices((prev) => prev.filter((d) => d._id !== deviceId));
+  } catch (err) {
+    Alert.alert("Delete Failed", err.message);
+  }
+};
 
   const devicesCount = useMemo(() => devices.length, [devices]);
   const getDeviceStatus = () => "online";
@@ -161,7 +124,7 @@ export default function Home() {
             }
             router.push({
               pathname: "/map",
-              params: { jacketId: devices[0].jacket_id },
+              params: { jacketId: devices[0].jacketId },
             });
           }}
         />
@@ -186,12 +149,12 @@ export default function Home() {
         ) : (
           alerts.map((a) => (
             <Pressable
-              key={a.id}
+              key={a._id}
               style={styles.alertCard}
               onPress={() =>
                 router.push({
                   pathname: "/alert",
-                  params: { alertId: a.id },
+                  params: { alertId: a._id },
                 })
               }
             >
@@ -204,8 +167,8 @@ export default function Home() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.alertReason}>{a.reason}</Text>
                 <Text style={styles.alertMeta}>
-                  Jacket {a.jacket_id} •{" "}
-                  {new Date(a.created_at).toLocaleTimeString()}
+                  Jacket {a.jacketId} •{" "}
+                  {new Date(a.createdAt).toLocaleTimeString()}
                 </Text>
               </View>
             </Pressable>
@@ -220,12 +183,12 @@ export default function Home() {
           ) : (
             devices.map((d) => (
               <Pressable
-                key={d.id}
+                key={d._id}
                 style={styles.deviceCard}
                 onPress={() =>
                   router.push({
                     pathname: "/device-details",
-                    params: { deviceId: d.id },
+                    params: { deviceId: d._id },
                   })
                 }
               >
@@ -239,7 +202,7 @@ export default function Home() {
                 <View style={styles.cardActions}>
                   <Pressable
                     style={styles.smallBtn}
-                    onPress={() => handleDeleteDevice(d.id)}
+                    onPress={() => handleDeleteDevice(d._id)}
                   >
                     <Ionicons
                       name="trash"

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect} from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AnimatedCard from "../../src/components/AnimatedCard";
 import AppInput from "../../src/components/AppInput";
 import PressableScale from "../../src/components/PressableScale";
-
 import { useAuthStore } from "../../src/store/authStore";
 import { theme } from "../../src/theme/theme";
 import { signInWithEmailAndPassword } from "firebase/auth";
@@ -24,6 +23,13 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.replace("/");
+    }
+  }, [isLoggedIn]);
 
 const handleLogin = async () => {
   if (!email || !password) {
@@ -46,7 +52,6 @@ const handleLogin = async () => {
            email: user.email,
          });
 
-         router.replace("/home");
        } catch (err) {
          Alert.alert("Login Failed", err.message);
        } finally {
