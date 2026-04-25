@@ -52,11 +52,7 @@ export default function Home() {
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_BASE}/devices/list.php`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+
 
       const text = await res.text();
 
@@ -78,11 +74,6 @@ export default function Home() {
     try {
       setAlertsLoading(true);
 
-      const res = await fetch(`${API_BASE}/alerts/list.php`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
 
       const text = await res.text();
       if (text.startsWith("<")) return;
@@ -112,14 +103,8 @@ export default function Home() {
   // ✅ DELETE DEVICE
   const handleDeleteDevice = async (deviceId) => {
     try {
-      const res = await fetch(`${API_BASE}/devices/delete.php`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ deviceId }),
-      });
+
+
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);

@@ -15,13 +15,10 @@ import AppInput from "../../src/components/AppInput";
 import AppScreen from "../../src/components/AppScreen";
 import { theme } from "../../src/theme/theme";
 
-import { useAuthStore } from "../../src/store/authStore";
+import { getDevices, updateDevice } from "../../src/services/deviceService";
 
 export default function EditDevice() {
   const { deviceId } = useLocalSearchParams();
-  const token = useAuthStore((s) => s.token);
-
-  const API_BASE = "http://192.168.1.9/iotjacket-api-php/api/v1";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,26 +31,15 @@ export default function EditDevice() {
   const [allergies, setAllergies] = useState("");
   const [jacketId, setJacketId] = useState("");
 
-  // ✅ FETCH DEVICE
+  // ✅ FETCH DEVICE FROM MONGO BACKEND
   useEffect(() => {
-    if (!token || !deviceId) return;
+    if (!deviceId) return;
 
     const fetchDevice = async () => {
       try {
-        const res = await fetch(
-          `${API_BASE}/devices/details.php?id=${deviceId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
+        const devices = await getDevices();
 
-        const text = await res.text();
-        if (text.startsWith("<")) throw new Error("Server error");
-
-        const data = JSON.parse(text);
-        const d = data.device;
+        const d = devices.find((dev) => dev._id === deviceId);
 
         if (!d) {
           Alert.alert("Not Found", "Device not found");
@@ -62,8 +48,9 @@ export default function EditDevice() {
         }
 
         setDeviceName(d.deviceName || "");
-        setWeight(d.weight || "");
-        setHeight(d.height || "");
+        setAge(String(d.age || ""));
+        setWeight(String(d.weight || ""));
+        setHeight(String(d.height || ""));
         setBloodGroup(d.bloodGroup || "");
         setAllergies(d.allergies || "");
         setJacketId(d.jacketId || "");
@@ -75,9 +62,9 @@ export default function EditDevice() {
     };
 
     fetchDevice();
-  }, [deviceId, token]);
+  }, [deviceId]);
 
-  // ✅ SAVE UPDATES
+  // ✅ UPDATE DEVICE
   const handleSave = async () => {
     if (!deviceName.trim() || !jacketId.trim()) {
       return Alert.alert("Error", "Device Name and Jacket ID are required");
@@ -86,26 +73,15 @@ export default function EditDevice() {
     try {
       setSaving(true);
 
-      const res = await fetch(`${API_BASE}/devices/update.php`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          deviceId,
-          deviceName,
-          weight,
-          height,
-          bloodGroup,
-          allergies,
-          jacketId,
-        }),
+      await updateDevice(deviceId, {
+        deviceName,
+        age,
+        weight,
+        height,
+        bloodGroup,
+        allergies,
+        jacketId,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.message);
 
       Alert.alert("✅ Updated", "Device updated successfully");
       router.back();
@@ -127,11 +103,8 @@ export default function EditDevice() {
     );
   }
 
-  // ⬇️ KEEP YOUR EXISTING UI JSX BELOW (UNCHANGED)
-
   return (
     <AppScreen>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
@@ -142,7 +115,6 @@ export default function EditDevice() {
         <View style={{ width: 42 }} />
       </View>
 
-      {/* Form Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Update Device Info</Text>
         <Text style={styles.sub}>
@@ -151,21 +123,18 @@ export default function EditDevice() {
 
         <AppInput
           label="Device Name"
-          placeholder="My Dad Jacket"
           value={deviceName}
           onChangeText={setDeviceName}
         />
 
         <AppInput
           label="Jacket ID"
-          placeholder="JACKET123"
           value={jacketId}
           onChangeText={setJacketId}
         />
 
         <AppInput
           label="Age"
-          placeholder="21"
           value={age}
           onChangeText={setAge}
           keyboardType="numeric"
@@ -173,7 +142,6 @@ export default function EditDevice() {
 
         <AppInput
           label="Weight (kg)"
-          placeholder="70"
           value={weight}
           onChangeText={setWeight}
           keyboardType="numeric"
@@ -181,7 +149,6 @@ export default function EditDevice() {
 
         <AppInput
           label="Height (cm)"
-          placeholder="175"
           value={height}
           onChangeText={setHeight}
           keyboardType="numeric"
@@ -189,14 +156,12 @@ export default function EditDevice() {
 
         <AppInput
           label="Blood Group"
-          placeholder="O+"
           value={bloodGroup}
           onChangeText={setBloodGroup}
         />
 
         <AppInput
           label="Allergies"
-          placeholder="None"
           value={allergies}
           onChangeText={setAllergies}
         />
@@ -213,42 +178,38 @@ export default function EditDevice() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { color: "#fff", marginTop: 10 },
 
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
-
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: theme.colors.chip,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 10,
+    backgroundColor: "#111827",
+    borderRadius: 12,
   },
-
-  title: { color: theme.colors.text, fontSize: 18, fontWeight: "900" },
+  title: {
+    flex: 1,
+    textAlign: "center",
+    color: "#fff",
+    fontWeight: "900",
+  },
 
   card: {
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.xl,
+    backgroundColor: "#020617",
     padding: 16,
+    borderRadius: 16,
   },
-
-  cardTitle: { color: theme.colors.text, fontWeight: "900", fontSize: 16 },
+  cardTitle: {
+    color: "#fff",
+    fontWeight: "900",
+    marginBottom: 4,
+  },
   sub: {
-    color: theme.colors.muted,
-    fontWeight: "700",
-    fontSize: 12,
-    marginTop: 5,
-    marginBottom: 14,
+    color: "#94A3B8",
+    marginBottom: 12,
   },
 });

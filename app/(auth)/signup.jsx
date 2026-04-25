@@ -14,7 +14,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AppButton from "../../src/components/AppButton";
 import AppInput from "../../src/components/AppInput";
 import { theme } from "../../src/theme/theme";
-
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../src/config/firebase";
+import { useAuthStore } from "../../src/store/authStore";
 export default function SignupScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -27,39 +29,25 @@ export default function SignupScreen() {
       Alert.alert("Error", "All fields required");
       return;
     }
-
-    try {
-      setLoading(true);
-
-      const res = await fetch(
-        "http://192.168.1.16/iotjacket-api-php/api/v1/auth/signup.php",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
+try{
+    setLoading(true);
+     const userCredential = await createUserWithEmailAndPassword(
+            auth,
             email,
-            password,
-          }),
-        },
-      );
-
-      const json = await res.json();
-
-      if (!json.success) {
-        Alert.alert("Signup Failed", json.message);
-        return;
-      }
-
-      Alert.alert("✅ Success", "Account created");
-      router.replace("/(auth)/login");
-    } catch (e) {
-      Alert.alert("Error", "Server not reachable");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+            password
+          );
+ const user = userCredential.user;
+    useAuthStore.getState().setAuth(null, {
+      id: user.uid,
+      email: user.email,
+    });
+    router.replace("/home");
+ } catch (err) {
+       Alert.alert("Signup Failed", err.message);
+     } finally {
+       setLoading(false);
+     }
+   };
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.bg }}

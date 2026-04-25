@@ -13,12 +13,11 @@ import { Ionicons } from "@expo/vector-icons";
 import AppButton from "../../src/components/AppButton";
 import AppInput from "../../src/components/AppInput";
 import AppScreen from "../../src/components/AppScreen";
-import { useAuthStore } from "../../src/store/authStore";
 import { theme } from "../../src/theme/theme";
 
-export default function AddDevice() {
-  const token = useAuthStore((s) => s.token);
+import { createDevice } from "../../src/services/deviceService";
 
+export default function AddDevice() {
   const [deviceName, setDeviceName] = useState("");
   const [jacketId, setJacketId] = useState("");
   const [age, setAge] = useState("");
@@ -28,14 +27,7 @@ export default function AddDevice() {
   const [allergies, setAllergies] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
-
   const handleSave = async () => {
-    if (!token) {
-      Alert.alert("Error", "User not logged in");
-      return;
-    }
-
     if (!deviceName.trim() || !jacketId.trim()) {
       Alert.alert("Error", "Device Name and Jacket ID are required");
       return;
@@ -44,37 +36,15 @@ export default function AddDevice() {
     try {
       setSaving(true);
 
-      const res = await fetch(`${API_BASE}/devices/add.php`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          deviceName: deviceName.trim(),
-          jacketId: jacketId.trim(),
-          age,
-          weight,
-          height,
-          bloodGroup,
-          allergies,
-        }),
+      await createDevice({
+        deviceName: deviceName.trim(),
+        jacketId: jacketId.trim(),
+        age,
+        weight,
+        height,
+        bloodGroup,
+        allergies,
       });
-
-      const text = await res.text();
-
-      if (text.startsWith("<")) {
-        console.error("Server returned HTML:", text);
-        Alert.alert("Server Error", "Backend error occurred");
-        return;
-      }
-
-      const data = JSON.parse(text);
-
-      if (!res.ok || data.success === false) {
-        Alert.alert("Failed", data.message || "Could not add device");
-        return;
-      }
 
       Alert.alert("✅ Added", "Device added successfully!");
       router.back();
@@ -87,7 +57,7 @@ export default function AddDevice() {
 
   return (
     <AppScreen>
-      {/* ✅ HEADER */}
+      {/* HEADER */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
@@ -105,91 +75,51 @@ export default function AddDevice() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
       >
-        {/* ✅ CARD 1 */}
         <View style={styles.card}>
           <View style={styles.cardHead}>
-            <View style={styles.cardIcon}>
-              <Ionicons name="watch" size={18} color={theme.colors.primary} />
-            </View>
+            <Ionicons name="watch" size={18} color={theme.colors.primary} />
             <Text style={styles.cardTitle}>Device Identity</Text>
           </View>
 
           <AppInput
             label="Device Name"
-            placeholder="My Dad Jacket"
             value={deviceName}
             onChangeText={setDeviceName}
           />
 
           <AppInput
             label="Jacket ID"
-            placeholder="JACKET123"
             value={jacketId}
             onChangeText={setJacketId}
-            autoCapitalize="characters"
           />
         </View>
 
-        {/* ✅ CARD 2 */}
         <View style={styles.card}>
           <View style={styles.cardHead}>
-            <View style={styles.cardIcon}>
-              <Ionicons name="person" size={18} color={theme.colors.primary} />
-            </View>
+            <Ionicons name="person" size={18} color={theme.colors.primary} />
             <Text style={styles.cardTitle}>User Health Profile</Text>
           </View>
 
-          <AppInput
-            label="Age"
-            placeholder="21"
-            value={age}
-            onChangeText={setAge}
-            keyboardType="numeric"
-          />
-
-          <AppInput
-            label="Weight (kg)"
-            placeholder="70"
-            value={weight}
-            onChangeText={setWeight}
-            keyboardType="numeric"
-          />
-
-          <AppInput
-            label="Height (cm)"
-            placeholder="175"
-            value={height}
-            onChangeText={setHeight}
-            keyboardType="numeric"
-          />
-
+          <AppInput label="Age" value={age} onChangeText={setAge} />
+          <AppInput label="Weight" value={weight} onChangeText={setWeight} />
+          <AppInput label="Height" value={height} onChangeText={setHeight} />
           <AppInput
             label="Blood Group"
-            placeholder="O+ / A+ / B+"
             value={bloodGroup}
             onChangeText={setBloodGroup}
           />
-
           <AppInput
             label="Allergies"
-            placeholder="None"
             value={allergies}
             onChangeText={setAllergies}
           />
         </View>
 
-        {/* ✅ SAVE BUTTON */}
         <AppButton
           title={saving ? "Saving..." : "Save Device"}
           onPress={handleSave}
           disabled={saving}
-          style={{ marginTop: 10 }}
         />
-
-        {/* ✅ Small note */}
-        <Text style={styles.note}>
-          ✅ Tip: Use the same Jacket ID that hardware team has programmed.
-        </Text>
       </ScrollView>
     </AppScreen>
   );
@@ -199,72 +129,35 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 14,
+    marginBottom: 16,
   },
-
   iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: theme.colors.chip,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 10,
+    backgroundColor: "#111827",
+    borderRadius: 12,
   },
-
   title: {
-    color: theme.colors.text,
-    fontSize: 20,
+    color: "#fff",
     fontWeight: "900",
   },
-
   subTitle: {
-    marginTop: 2,
-    color: theme.colors.muted,
-    fontWeight: "700",
+    color: "#94A3B8",
     fontSize: 12,
   },
-
   card: {
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.xl,
+    backgroundColor: "#020617",
     padding: 16,
-    marginBottom: 12,
+    borderRadius: 16,
+    marginBottom: 14,
   },
-
   cardHead: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 10,
   },
-
-  cardIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 16,
-    backgroundColor: theme.colors.primarySoft,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   cardTitle: {
-    color: theme.colors.text,
+    color: "#fff",
     fontWeight: "900",
-    fontSize: 14,
-  },
-
-  note: {
-    marginTop: 12,
-    textAlign: "center",
-    color: theme.colors.muted,
-    fontWeight: "700",
-    fontSize: 12,
   },
 });

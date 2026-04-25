@@ -321,11 +321,8 @@ export default function AlertsScreen() {
   // ✅ Fetch alerts from PHP API
   const fetchAlerts = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/alerts/list.php`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+
+
 
       const json = await res.json();
 

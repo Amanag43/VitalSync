@@ -10,7 +10,7 @@ export default function SettingsScreen() {
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const user = useAuthStore((s) => s.user);
 
-  const userId = user?.id ?? "N/A";
+const userId = useAuthStore.getState().getUserId();
   const shortUid = typeof userId === "number" ? userId.toString() : userId;
 
   // ✅ REAL LOGOUT (ONE SOURCE OF TRUTH)

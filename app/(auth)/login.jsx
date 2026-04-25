@@ -13,8 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AnimatedCard from "../../src/components/AnimatedCard";
 import AppInput from "../../src/components/AppInput";
 import PressableScale from "../../src/components/PressableScale";
+
 import { useAuthStore } from "../../src/store/authStore";
 import { theme } from "../../src/theme/theme";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../src/config/firebase";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -22,62 +25,35 @@ export default function LoginScreen() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "All fields are required");
-      return;
-    }
+const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert("Error", "All fields are required");
+    return;
+  }
+     try {
+        setLoading(true);
 
-    try {
-      setLoading(true);
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
 
-      // 1️⃣ LOGIN → GET TOKEN
-      const res = await fetch(
-        "http://192.168.1.16/iotjacket-api-php/api/v1/auth/login.php",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        },
-      );
+      const user = userCredential.user;
+    // Save user in store
+         useAuthStore.getState().setAuth(null, {
+           id: user.uid,
+           email: user.email,
+         });
 
-      const json = await res.json();
+         router.replace("/home");
+       } catch (err) {
+         Alert.alert("Login Failed", err.message);
+       } finally {
+         setLoading(false);
+       }
+     };
 
-      if (!json.success) {
-        Alert.alert("Login Failed", json.message);
-        return;
-      }
-
-      const token = json.token;
-
-      // 2️⃣ FETCH USER USING TOKEN
-      const meRes = await fetch(
-        "http://192.168.1.16/iotjacket-api-php/api/v1/auth/me.php",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const meJson = await meRes.json();
-
-      if (!meJson.success) {
-        Alert.alert("Error", "Failed to fetch user");
-        return;
-      }
-
-      // 3️⃣ SAVE AUTH (TOKEN + USER)
-      useAuthStore.getState().setAuth(token, meJson.user);
-
-      // 4️⃣ NAVIGATE
-      router.replace("/(app)/home");
-    } catch (err) {
-      Alert.alert("Error", "Server not reachable");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView

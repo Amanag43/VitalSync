@@ -4,35 +4,37 @@ import { persist } from "zustand/middleware";
 
 export const useAuthStore = create(
   persist(
-    (set) => ({
-      token: null,
+    (set, get) => ({
       user: null,
       isLoggedIn: false,
       hydrated: false,
 
-      setAuth: (token, user) =>
+      // ✅ SET AUTH (Firebase user)
+      setAuth: (_, user) =>
         set({
-          token,
           user,
           isLoggedIn: true,
         }),
 
+      // ✅ CLEAR AUTH
       clearAuth: () =>
         set({
-          token: null,
           user: null,
           isLoggedIn: false,
-          hydrated: true, // 👈 IMPORTANT
+          hydrated: true,
         }),
 
+      // ✅ HYDRATION FLAG
       setHydrated: () =>
         set({
           hydrated: true,
         }),
+
+      // ✅ GET USER ID (VERY IMPORTANT)
       getUserId: () => {
-              const user = get().user;
-              return user?.id || user?.user_id || null;
-            },
+        const user = get().user;
+        return user?.id || null;
+      },
     }),
 
     {
@@ -52,6 +54,6 @@ export const useAuthStore = create(
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },
-    },
-  ),
+    }
+  )
 );

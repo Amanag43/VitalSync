@@ -3,9 +3,9 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  StyleSheet,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from "react-native";
@@ -16,47 +16,30 @@ import AppScreen from "../../src/components/AppScreen";
 import StatusPill from "../../src/components/StatusPill";
 import { theme } from "../../src/theme/theme";
 
-import { useAuthStore } from "../../src/store/authStore";
+import { getDevices } from "../../src/services/deviceService";
 
 export default function DeviceDetails() {
   const { deviceId } = useLocalSearchParams();
-  const token = useAuthStore((s) => s.token);
 
   const [device, setDevice] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const API_BASE = "http://192.168.1.16/iotjacket-api-php/api/v1";
-
   useEffect(() => {
-    if (!token || !deviceId) return;
+    if (!deviceId) return;
 
     const fetchDevice = async () => {
       try {
-        const res = await fetch(
-          `${API_BASE}/devices/details.php?id=${deviceId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
+        const devices = await getDevices();
 
-        const text = await res.text();
+        const d = devices.find((dev) => dev._id === deviceId);
 
-        if (text.startsWith("<")) {
-          console.error("Server returned HTML:", text);
-          throw new Error("Server error");
-        }
-
-        const data = JSON.parse(text);
-
-        if (!res.ok || !data.device) {
+        if (!d) {
           Alert.alert("Not Found", "Device not found");
           router.back();
           return;
         }
 
-        setDevice(data.device);
+        setDevice(d);
       } catch (err) {
         Alert.alert("Error", err.message);
       } finally {
@@ -65,7 +48,7 @@ export default function DeviceDetails() {
     };
 
     fetchDevice();
-  }, [deviceId, token]);
+  }, [deviceId]);
 
   const getStatus = () => "online";
 
@@ -90,11 +73,8 @@ export default function DeviceDetails() {
     );
   }
 
-  // ⬇️ YOUR EXISTING UI CONTINUES BELOW (UNCHANGED)
-
   return (
     <AppScreen>
-      {/* ✅ HEADER */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
@@ -109,7 +89,7 @@ export default function DeviceDetails() {
           onPress={() =>
             router.push({
               pathname: "/edit-device",
-              params: { deviceId: device.id },
+              params: { deviceId: device._id },
             })
           }
           style={styles.iconBtn}
@@ -122,7 +102,6 @@ export default function DeviceDetails() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 20 }}
       >
-        {/* ✅ MAIN DEVICE CARD */}
         <View style={styles.deviceCard}>
           <View style={styles.deviceTopRow}>
             <View style={styles.deviceIcon}>
@@ -136,21 +115,20 @@ export default function DeviceDetails() {
             <View style={{ flex: 1 }}>
               <Text style={styles.deviceName}>{device.deviceName}</Text>
               <Text style={styles.deviceMeta}>
-                Jacket ID: {device.jacket_id}
+                Jacket ID: {device.jacketId}
               </Text>
             </View>
 
             <StatusPill type={getStatus()} />
           </View>
 
-          {/* CTA BUTTONS */}
           <View style={styles.ctaRow}>
             <Pressable
               style={styles.ctaBtnPrimary}
               onPress={() =>
                 router.push({
                   pathname: "/map",
-                  params: { jacketId: device.jacket_id },
+                  params: { jacketId: device.jacketId },
                 })
               }
             >
@@ -163,7 +141,7 @@ export default function DeviceDetails() {
               onPress={() =>
                 router.push({
                   pathname: "/edit-device",
-                  params: { deviceId: device.id },
+                  params: { deviceId: device._id },
                 })
               }
             >
@@ -177,7 +155,6 @@ export default function DeviceDetails() {
           </View>
         </View>
 
-        {/* ✅ PROFILE INFO */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Health Profile</Text>
 
@@ -202,73 +179,12 @@ export default function DeviceDetails() {
 
           <View style={styles.noteBox}>
             <Text style={styles.noteTitle}>Allergies</Text>
-            <Text style={styles.noteValue}>{device.allergies || "None"}</Text>
+            <Text style={styles.noteValue}>
+              {device.allergies || "None"}
+            </Text>
           </View>
         </View>
 
-        {/* ✅ QUICK ACTIONS */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quick Actions</Text>
-
-          <Pressable
-            style={styles.actionItem}
-            onPress={() =>
-              router.push({
-                pathname: "/alert",
-                params: { jacket_id: device.jacket_id },
-              })
-            }
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: theme.colors.dangerSoft },
-              ]}
-            >
-              <Ionicons
-                name="alert-circle"
-                size={18}
-                color={theme.colors.danger}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionTitle}>View Alerts</Text>
-              <Text style={styles.actionSub}>
-                Check SOS history for this account
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color={theme.colors.muted}
-            />
-          </Pressable>
-
-          <Pressable
-            style={styles.actionItem}
-            onPress={() => router.push("/contacts")}
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: theme.colors.primarySoft },
-              ]}
-            >
-              <Ionicons name="call" size={18} color={theme.colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionTitle}>Emergency Contacts</Text>
-              <Text style={styles.actionSub}>People to notify in SOS</Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color={theme.colors.muted}
-            />
-          </Pressable>
-        </View>
-
-        {/* ✅ EXTRA POLISH */}
         <AppButton
           title="📍 Open Live Map"
           onPress={() =>
@@ -277,7 +193,6 @@ export default function DeviceDetails() {
               params: { jacketId: device.jacketId },
             })
           }
-          style={{ marginTop: 6 }}
         />
       </ScrollView>
     </AppScreen>

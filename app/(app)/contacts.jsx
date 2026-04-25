@@ -1,4 +1,3 @@
-// import { Ionicons } from "@expo/vector-icons";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -7,8 +6,8 @@ import {
   Alert,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -18,7 +17,7 @@ import AppScreen from "../../src/components/AppScreen";
 import { useAuthStore } from "../../src/store/authStore";
 import { theme } from "../../src/theme/theme";
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL;
+const BASE_URL = "http://YOUR_IP:5000/api/contacts";
 
 export default function ContactsScreen() {
   const [contacts, setContacts] = useState([]);
@@ -30,42 +29,36 @@ export default function ContactsScreen() {
   const [phone, setPhone] = useState("");
   const [relationship, setRelationship] = useState("");
 
-  // ✅ Bearer token from Zustand (replaces Firebase auth.currentUser)
-  const token = useAuthStore((s) => s.token);
+  const getUserId = () => useAuthStore.getState().getUserId();
 
-  // ✅ FETCH CONTACTS from PHP API
+  // ✅ FETCH CONTACTS (MONGO BACKEND)
   const fetchContacts = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/contacts/list.php`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const userId = getUserId();
+      if (!userId) return;
 
-      const json = await res.json();
+      const res = await fetch(`${BASE_URL}/${userId}`);
+      const data = await res.json();
 
-      if (!json.success) {
-        Alert.alert("Error", json.message || "Failed to load contacts");
-        return;
-      }
-
-      setContacts(json.contacts);
+      setContacts(data || []);
     } catch (err) {
-      Alert.alert("Error", "Could not reach server");
+      Alert.alert("Error", "Could not load contacts");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchContacts();
-  }, [fetchContacts]);
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchContacts();
   };
 
-  // ✅ ADD CONTACT via PHP API
+  // ✅ ADD CONTACT
   const handleAddContact = async () => {
     if (!name.trim() || !phone.trim()) {
       return Alert.alert("Error", "Name and Phone are required");
@@ -74,32 +67,24 @@ export default function ContactsScreen() {
     try {
       setSaving(true);
 
-      const res = await fetch(`${API_BASE}/contacts/add.php`, {
+      const userId = getUserId();
+
+      const res = await fetch(BASE_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          userId,
           name: name.trim(),
           phone: phone.trim(),
           relationship: relationship.trim(),
         }),
       });
 
-      const json = await res.json();
+      const newContact = await res.json();
 
-      if (!json.success) {
-        Alert.alert("Error", json.message || "Failed to save contact");
-        return;
-      }
-
-      // Add to local state immediately (no need to refetch)
-      setContacts((prev) => {
-        // If this is the first contact, mark it primary in UI
-        const newContact = { ...json.contact };
-        return [...prev, newContact];
-      });
+      setContacts((prev) => [...prev, newContact]);
 
       setName("");
       setPhone("");
@@ -107,36 +92,24 @@ export default function ContactsScreen() {
 
       Alert.alert("✅ Saved", "Contact added successfully!");
     } catch (err) {
-      Alert.alert("Error", "Could not reach server");
+      Alert.alert("Error", "Could not save contact");
     } finally {
       setSaving(false);
     }
   };
 
-  // ✅ DELETE CONTACT via PHP API
+  // ✅ DELETE CONTACT
   const handleDeleteContact = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/contacts/delete.php`, {
+      await fetch(`${BASE_URL}/${id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ id }),
       });
 
-      const json = await res.json();
+      setContacts((prev) => prev.filter((c) => c._id !== id));
 
-      if (!json.success) {
-        Alert.alert("Error", json.message || "Failed to delete contact");
-        return;
-      }
-
-      // Remove from local state immediately
-      setContacts((prev) => prev.filter((c) => c.id !== id));
       Alert.alert("Deleted", "Contact removed ✅");
     } catch (err) {
-      Alert.alert("Error", "Could not reach server");
+      Alert.alert("Error", "Could not delete contact");
     }
   };
 
@@ -157,7 +130,7 @@ export default function ContactsScreen() {
           onPress={() =>
             Alert.alert(
               "SOS Contacts",
-              "These contacts will be notified when SOS is triggered ✅",
+              "These contacts will be notified when SOS is triggered ✅"
             )
           }
           style={styles.iconBtn}
@@ -171,7 +144,6 @@ export default function ContactsScreen() {
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -180,149 +152,56 @@ export default function ContactsScreen() {
           />
         }
       >
-        {/* ADD FORM CARD */}
+        {/* ADD FORM */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Add Contact</Text>
 
           <Label text="Full Name" />
-          <TextInput
-            style={styles.input}
-            placeholder="Aman's Father"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            value={name}
-            onChangeText={setName}
-          />
+          <TextInput style={styles.input} value={name} onChangeText={setName} />
 
           <Label text="Phone Number" />
           <TextInput
             style={styles.input}
-            placeholder="9876543210"
-            placeholderTextColor="rgba(255,255,255,0.35)"
-            keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
           />
 
-          <Label text="Relationship (optional)" />
+          <Label text="Relationship" />
           <TextInput
             style={styles.input}
-            placeholder="Father / Mother / Friend"
-            placeholderTextColor="rgba(255,255,255,0.35)"
             value={relationship}
             onChangeText={setRelationship}
           />
 
           <Pressable
-            style={[styles.saveBtn, { opacity: saving ? 0.7 : 1 }]}
+            style={styles.saveBtn}
             onPress={handleAddContact}
             disabled={saving}
           >
-            <Ionicons name="add-circle" size={18} color="#fff" />
             <Text style={styles.saveText}>
               {saving ? "Saving..." : "Save Contact"}
             </Text>
           </Pressable>
         </View>
 
-        {/* CONTACT LIST */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Saved Contacts</Text>
-          <Text style={styles.sectionSmall}>
-            {contacts.length} contact(s) added
-          </Text>
-        </View>
-
+        {/* LIST */}
         {loading ? (
-          <ActivityIndicator
-            color={theme.colors.primary}
-            style={{ marginTop: 20 }}
-          />
+          <ActivityIndicator style={{ marginTop: 20 }} />
         ) : contacts.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <View style={styles.emptyIcon}>
-              <Ionicons
-                name="call-outline"
-                size={26}
-                color={theme.colors.primary}
-              />
-            </View>
-            <Text style={styles.emptyTitle}>No Contacts Added</Text>
-            <Text style={styles.emptySub}>
-              Add emergency contacts so SOS can notify them instantly.
-            </Text>
-          </View>
+          <Text style={{ color: "#fff", textAlign: "center" }}>
+            No contacts added
+          </Text>
         ) : (
           contacts.map((c) => (
-            <View key={c.id} style={styles.contactCard}>
-              <View style={styles.contactTop}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {(c.name || "C").slice(0, 1).toUpperCase()}
-                  </Text>
-                </View>
+            <View key={c._id} style={styles.contactCard}>
+              <Text style={styles.contactName}>{c.name}</Text>
 
-                <View style={{ flex: 1 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <Text style={styles.contactName}>{c.name}</Text>
-                    {c.is_primary ? (
-                      <View style={styles.primaryBadge}>
-                        <Text style={styles.primaryText}>PRIMARY</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <Text style={styles.contactPhone}>{c.phone}</Text>
-                  {c.relationship ? (
-                    <Text style={styles.contactRel}>{c.relationship}</Text>
-                  ) : null}
-                </View>
-              </View>
-
-              <View style={styles.actionRow}>
-                <Pressable
-                  style={styles.callBtn}
-                  onPress={() =>
-                    Alert.alert(
-                      "Call feature",
-                      "Real call + SMS coming soon ✅",
-                    )
-                  }
-                >
-                  <Ionicons name="call" size={14} color="#fff" />
-                  <Text style={styles.callText}>Call</Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.deleteBtn}
-                  onPress={() =>
-                    Alert.alert("Delete Contact?", `Remove ${c.name}?`, [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Delete",
-                        style: "destructive",
-                        onPress: () => handleDeleteContact(c.id),
-                      },
-                    ])
-                  }
-                >
-                  <Ionicons
-                    name="trash"
-                    size={14}
-                    color={theme.colors.danger}
-                  />
-                  <Text style={styles.deleteText}>Delete</Text>
-                </Pressable>
-              </View>
+              <Pressable onPress={() => handleDeleteContact(c._id)}>
+                <Text style={{ color: "red" }}>Delete</Text>
+              </Pressable>
             </View>
           ))
         )}
-
-        <View style={{ height: 30 }} />
       </ScrollView>
     </AppScreen>
   );

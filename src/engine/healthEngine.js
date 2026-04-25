@@ -4,19 +4,47 @@ import { useAuthStore } from "../store/authStore";
 import { useHealthStore } from "../store/healthStore";
 
 export const runHealthEngine = async () => {
-  const vitals = await getVitals();
+  try {
+    // ✅ 1. Get vitals safely
+    let vitals = null;
 
-  if (!vitals) return;
+    try {
+      vitals = await getVitals();
+    } catch (err) {
+      console.log("getVitals error:", err.message);
+      return;
+    }
 
-  const userId = useAuthStore.getState().getUserId();
-  const setVitals = useHealthStore.getState().setVitals;
+    if (!vitals) return;
 
-  if (!userId) return;
+    // ✅ 2. Get user safely
+    const store = useAuthStore.getState();
+    const userId = store?.getUserId?.();
 
-  setVitals(vitals);
+    if (!userId) {
+      console.log("No userId");
+      return;
+    }
 
-  await sendVitals({
-    userId,
-    ...vitals,
-  });
+    // ✅ 3. Update global state safely
+    try {
+      const healthStore = useHealthStore.getState();
+      healthStore?.setVitals?.(vitals);
+    } catch (err) {
+      console.log("setVitals error:", err.message);
+    }
+
+    // ✅ 4. Send to backend safely
+    try {
+      await sendVitals({
+        userId,
+        ...vitals,
+      });
+    } catch (err) {
+      console.log("sendVitals error:", err.message);
+    }
+
+  } catch (err) {
+    console.log("Health Engine Crash Prevented:", err.message);
+  }
 };
