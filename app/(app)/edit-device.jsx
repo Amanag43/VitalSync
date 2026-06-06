@@ -14,11 +14,13 @@ import AppButton from "../../src/components/AppButton";
 import AppInput from "../../src/components/AppInput";
 import AppScreen from "../../src/components/AppScreen";
 import { theme } from "../../src/theme/theme";
-
+import { useAuthStore } from "../../src/store/authStore";
 import { getDevices, updateDevice } from "../../src/services/deviceService";
 
 export default function EditDevice() {
   const { deviceId } = useLocalSearchParams();
+const user = useAuthStore.getState().user;
+
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,7 +39,7 @@ export default function EditDevice() {
 
     const fetchDevice = async () => {
       try {
-        const devices = await getDevices();
+        const devices = await getDevices(user.id);
 
         const d = devices.find((dev) => dev._id === deviceId);
 
@@ -73,15 +75,15 @@ export default function EditDevice() {
     try {
       setSaving(true);
 
-      await updateDevice(deviceId, {
-        deviceName,
-        age,
-        weight,
-        height,
-        bloodGroup,
-        allergies,
-        jacketId,
-      });
+     await updateDevice(deviceId, {
+       deviceName,
+       jacketId,
+       age: Number(age),
+       weight: Number(weight),
+       height: Number(height),
+       bloodGroup,
+       allergies,
+     });
 
       Alert.alert("✅ Updated", "Device updated successfully");
       router.back();

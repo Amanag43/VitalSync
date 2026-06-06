@@ -15,7 +15,7 @@ import AppButton from "../../src/components/AppButton";
 import AppScreen from "../../src/components/AppScreen";
 import StatusPill from "../../src/components/StatusPill";
 import { theme } from "../../src/theme/theme";
-
+import { useAuthStore } from "../../src/store/authStore";
 import { getDevices } from "../../src/services/deviceService";
 
 export default function DeviceDetails() {
@@ -29,7 +29,13 @@ export default function DeviceDetails() {
 
     const fetchDevice = async () => {
       try {
-        const devices = await getDevices();
+        const user = useAuthStore.getState().user;
+
+        if (!user?.id) {
+          throw new Error("User not found");
+        }
+
+        const devices = await getDevices(user.id);
 
         const d = devices.find((dev) => dev._id === deviceId);
 
@@ -159,7 +165,8 @@ export default function DeviceDetails() {
           <Text style={styles.cardTitle}>Health Profile</Text>
 
           <View style={styles.grid}>
-            <InfoBox icon="calendar" label="Age" value={device.age || "N/A"} />
+            <InfoBox icon="calendar" label="Age"
+            value={device.age !== null && device.age !== undefined ? device.age : "N/A"} />
             <InfoBox
               icon="barbell"
               label="Weight"
@@ -176,11 +183,10 @@ export default function DeviceDetails() {
               value={device.bloodGroup || "N/A"}
             />
           </View>
-
           <View style={styles.noteBox}>
             <Text style={styles.noteTitle}>Allergies</Text>
             <Text style={styles.noteValue}>
-              {device.allergies || "None"}
+              {device.allergies?.trim() ? device.allergies : "None"}
             </Text>
           </View>
         </View>

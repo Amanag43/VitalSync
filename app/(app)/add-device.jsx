@@ -14,6 +14,7 @@ import AppButton from "../../src/components/AppButton";
 import AppInput from "../../src/components/AppInput";
 import AppScreen from "../../src/components/AppScreen";
 import { theme } from "../../src/theme/theme";
+import { useAuthStore } from "../../src/store/authStore";
 
 import { createDevice } from "../../src/services/deviceService";
 
@@ -26,22 +27,28 @@ export default function AddDevice() {
   const [bloodGroup, setBloodGroup] = useState("");
   const [allergies, setAllergies] = useState("");
   const [saving, setSaving] = useState(false);
+  const user = useAuthStore((s) => s.user);
 
   const handleSave = async () => {
     if (!deviceName.trim() || !jacketId.trim()) {
       Alert.alert("Error", "Device Name and Jacket ID are required");
       return;
     }
+ if (!user?.id) {
+    Alert.alert("Error", "User not found");
+    return;
+  }
 
     try {
       setSaving(true);
 
       await createDevice({
+        userId: user.id,
         deviceName: deviceName.trim(),
         jacketId: jacketId.trim(),
-        age,
-        weight,
-        height,
+        age: Number(age),
+        weight: Number(weight),
+        height: Number(height),
         bloodGroup,
         allergies,
       });
@@ -61,7 +68,7 @@ export default function AddDevice() {
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={18} color={theme.colors.text} />
-        </Pressable>
+      </Pressable>
 
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Add Device</Text>

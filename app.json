@@ -15,11 +15,13 @@
     "android": {
       "package": "com.VitalSync",
       "permissions": [
+        "ACCESS_FINE_LOCATION",
         "INTERNET",
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_BODY_TEMPERATURE"
       ],
+
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -34,6 +36,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -51,7 +55,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
+      "reactCompiler": false
     }
   }
 }
