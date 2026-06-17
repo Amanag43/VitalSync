@@ -1,6 +1,6 @@
 import { useAuthStore } from "../store/authStore";
 
-const BASE_URL = "http://192.168.1.5:5000";
+const BASE_URL = "http://192.168.29.170:5000";
 
 export const getDevices = async (userId) => {
   const res = await fetch(`${BASE_URL}/devices/${userId}`);

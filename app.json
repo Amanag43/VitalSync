@@ -21,7 +21,6 @@
         "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_BODY_TEMPERATURE"
       ],
-
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -36,7 +35,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-
       "expo-router",
       [
         "expo-splash-screen",
@@ -50,7 +48,8 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-health-connect"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -30,7 +30,7 @@ export default function Home() {
   const emergencyReason = useEmergencyStore((s) => s.emergencyReason);
   const stopEmergency = useEmergencyStore((s) => s.stopEmergency);
 
-  const BASE_URL = "http://192.168.1.11:5000";
+  const BASE_URL = "http://192.168.29.170:5000";
 
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);

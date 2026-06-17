@@ -1,44 +1,41 @@
 import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { runHealthEngine } from "../src/engine/healthEngine";
-import {
-  initHealth,
-  requestHealthPermissions,
-} from "../src/services/healthService";
 import { useAuthStore } from "../src/store/authStore";
-import { useHealthStore } from "../src/store/healthStore";
-
-import { sendVitals } from "../src/services/apiService";
+import { useVitalsStore } from "../src/store/vitalsStore";
+import { startAlertEngine, stopAlertEngine } from "../src/engine/alertEngine";
+import { initHealthConnect } from "../src/services/healthConnect";
 
 export default function RootLayout() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const hydrated = useAuthStore((s) => s.hydrated);
 
-useEffect(() => {
-  if (!isLoggedIn) return;
+  useEffect(() => {
+    if (!isLoggedIn) return;
 
-  const setupHealth = async () => {
-    try {
-     console.log("Skipping health init");
-      console.log("Health setup done");
-    } catch (err) {
-      console.log("Health setup error:", err.message);
-    }
-  };
+    const setup = async () => {
+      try {
+        console.log("STEP 1: getting userId");
+        const userId = useAuthStore.getState().userId;
+        console.log("STEP 2: userId =", userId);
 
-  setupHealth();
+        await initHealthConnect();
+        console.log("STEP 3: health connect done");
 
-  const interval = setInterval(() => {
-    try {
-      console.log("Engine tick");
-    } catch (err) {
-      console.log("Health Engine Error:", err.message);
-    }
-  }, 20000);
+        useVitalsStore.getState().setUserId(userId);
+        useVitalsStore.getState().connectWebSocket(userId);
+        console.log("STEP 4: websocket connecting");
 
-  return () => clearInterval(interval);
-}, [isLoggedIn]);
+        await startAlertEngine(userId);
+        console.log("STEP 5: alert engine done");
+      } catch (err) {
+        console.log("SETUP ERROR:", err.message);
+      }
+    };
+
+    setup();
+    return () => stopAlertEngine();
+  }, [isLoggedIn]);
 
   if (!hydrated) return null;
 

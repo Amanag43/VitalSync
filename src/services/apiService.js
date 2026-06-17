@@ -1,4 +1,4 @@
-const BASE_URL = "http://192.168.1.5:5000";
+const BASE_URL = "http://192.168.29.170:5000";
 
 // 🔥 Generic safe fetch handler
 const safeFetch = async (url, options = {}) => {
