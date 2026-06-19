@@ -15,11 +15,19 @@
     "android": {
       "package": "com.VitalSync",
       "permissions": [
+        "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "SYSTEM_ALERT_WINDOW",
+        "VIBRATE",
+        "WRITE_EXTERNAL_STORAGE",
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_OXYGEN_SATURATION",
-        "android.permission.health.READ_BODY_TEMPERATURE"
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_RESPIRATORY_RATE",
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.health.READ_BLOOD_PRESSURE"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -49,7 +57,12 @@
         }
       ],
       "expo-web-browser",
-      "react-native-health-connect"
+      [
+        "react-native-health-connect",
+        {
+          "package": "com.VitalSync"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

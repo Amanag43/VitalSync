@@ -9,31 +9,43 @@ export const useAuthStore = create(
       isLoggedIn: false,
       hydrated: false,
 
-      // ✅ SET AUTH (Firebase user)
-      setAuth: (_, user) =>
-        set({
-          user,
-          isLoggedIn: true,
-        }),
+      // setAuth — first param was _ (thrown away). Now accepts (uid, userObj) or just (userObj).
+      // We also always ensure .uid is stored so getUserId works regardless of how it's called.
+      setAuth: (uidOrUser, userObj) => {
+        // Support two call patterns:
+        //   setAuth(null, { id: uid, email })   ← your current login screen
+        //   setAuth({ uid, email })              ← future Firebase direct pass
+        const resolved =
+          userObj ??
+          (typeof uidOrUser === "object" ? uidOrUser : null);
 
-      // ✅ CLEAR AUTH
+        if (!resolved) {
+          console.warn("[AuthStore] setAuth called with no user object");
+          return;
+        }
+
+        // Normalise: always store both .id and .uid so nothing breaks
+        const normalised = {
+          ...resolved,
+          id:  resolved.id  ?? resolved.uid ?? null,
+          uid: resolved.uid ?? resolved.id  ?? null,
+        };
+
+        console.log("[AuthStore] setAuth → userId:", normalised.id);
+        set({ user: normalised, isLoggedIn: true });
+      },
+
       clearAuth: () =>
-        set({
-          user: null,
-          isLoggedIn: false,
-          hydrated: true,
-        }),
+        set({ user: null, isLoggedIn: false }),
 
-      // ✅ HYDRATION FLAG
       setHydrated: () =>
-        set({
-          hydrated: true,
-        }),
+        set({ hydrated: true }),
 
-      // ✅ GET USER ID (VERY IMPORTANT)
+      // Returns the Firebase UID or null
       getUserId: () => {
         const user = get().user;
-        return user?.id || null;
+        // Check .id first (your current pattern), then .uid as fallback
+        return user?.id ?? user?.uid ?? null;
       },
     }),
 

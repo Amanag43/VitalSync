@@ -9,15 +9,17 @@ import {
   StyleSheet,
   Text,
   View,
+  TouchableOpacity,
 } from "react-native";
 import { getDevices, getAlerts } from "../../src/services/apiService";
-
+import { debugHealthConnect } from "../../src/utils/healthConnectDebug";
 import AppScreen from "../../src/components/AppScreen";
 import BMICard from "../../src/components/BMICard";
 import EmergencyBanner from "../../src/components/EmergencyBanner";
 import FAB from "../../src/components/FAB";
 import PrimaryAidCard from "../../src/components/PrimaryAidCard";
 import StatusPill from "../../src/components/StatusPill";
+
 
 import { useAuthStore } from "../../src/store/authStore";
 import { useEmergencyStore } from "../../src/store/emergencyStore";
@@ -37,6 +39,9 @@ export default function Home() {
   const userLabel = user?.email ?? "User";
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
+  useEffect(() => {
+    debugHealthConnect();
+  }, []);
 
  useFocusEffect(
    useCallback(() => {
@@ -77,6 +82,7 @@ const handleDeleteDevice = async (deviceId) => {
     Alert.alert("Delete Failed", err.message);
   }
 };
+
 
   const devicesCount = useMemo(() => devices.length, [devices]);
   const getDeviceStatus = () => "online";
@@ -128,6 +134,14 @@ const handleDeleteDevice = async (deviceId) => {
             });
           }}
         />
+        <TouchableOpacity
+                style={{ padding: 16, backgroundColor: "#333", marginTop: 20 }}
+                onPress={() => router.push("/health-diagnostic")}
+              >
+                <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}>
+                  🔬 Health Diagnostic
+                </Text>
+              </TouchableOpacity>
 
         <PrimaryAidCard />
 
