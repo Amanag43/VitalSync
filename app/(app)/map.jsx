@@ -7,15 +7,13 @@ import {
   ActivityIndicator, Linking, Alert, Animated, Dimensions, Platform,
 } from "react-native";
 import Mapbox, {
-  Camera, MapView, PointAnnotation, ShapeSource, LineLayer, UserLocation,
+  Camera, MapView, PointAnnotation, ShapeSource, LineLayer, UserLocation,LocationPuck
 } from "@rnmapbox/maps";
 import * as Location from "expo-location";
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 const MAPBOX_TOKEN = "pk.eyJ1IjoiYW1hbjE1MTgiLCJhIjoiY21taTdoZW01MTNndDJwczYxYmQxaW1lNiJ9.rGfG_eih3BYwE7ODZ4d1GQ";
 Mapbox.setAccessToken(MAPBOX_TOKEN);
-
-const FOURSQUARE_API_KEY = "AFM4IWRO5MMS2CB4CDQK1F1VAQVU3P4WSWTCVVPCZBALAXZR";
 
 const { width: SW, height: SH } = Dimensions.get("window");
 // Safe area top: notch phones need extra space
@@ -76,41 +74,63 @@ async function fetchT(url, opts={}, ms=9000) {
   catch(e) { clearTimeout(t); throw e; }
 }
 
-// ─── FOURSQUARE ───────────────────────────────────────────────────────────────
-async function fetchFoursquare(lat, lon) {
-  if (!FOURSQUARE_API_KEY?.startsWith("A")) throw new Error("FSQ key invalid");
-  const url = `https://api.foursquare.com/v3/places/search?ll=${lat},${lon}&query=hospital&radius=12000&limit=20&fields=fsq_id,name,geocodes,location,categories,tel`;
-  const res = await fetchT(url, { headers:{ Authorization: FOURSQUARE_API_KEY }}, 8000);
-  if (!res.ok) { const b = await res.text().catch(()=>""); throw new Error(`FSQ ${res.status}: ${b.slice(0,80)}`); }
-  const json = await res.json();
-  return (json.results||[]).map((p,i) => ({
-    id: p.fsq_id||`fsq-${i}`,
-    name: p.name||"Medical Centre",
-    lat: p.geocodes?.main?.latitude,
-    lon: p.geocodes?.main?.longitude,
-    phone: p.tel||null,
-    type: p.categories?.some(c=>c.name?.toLowerCase().includes("clinic")) ? "Clinic" : "Hospital",
-    emergency: false,
-    address: [p.location?.address, p.location?.locality].filter(Boolean).join(", ")||null,
-  })).filter(h=>h.lat&&h.lon);
-}
 
-// ─── MAIN FETCH (Foursquare → Static) ────────────────────────────────────────
 async function fetchNearbyHospitals(lat, lon) {
-  console.log(`[Hospitals] ${lat.toFixed(4)}, ${lon.toFixed(4)}`);
   try {
-    const r = await fetchFoursquare(lat, lon);
-    console.log(`[Hospitals] FSQ: ${r.length}`);
-    if (r.length > 0) return r;
-  } catch(e) { console.log(`[Hospitals] FSQ failed: ${e.message}`); }
+    const accessToken = MAPBOX_TOKEN;
 
-  console.log("[Hospitals] Static fallback");
-  return STATIC_HOSPITALS
-    .map(h => ({...h, _d: haversineKm(lat,lon,h.lat,h.lon)}))
-    .sort((a,b) => a._d-b._d)
-    .slice(0,5);
+    const url =
+      `https://api.mapbox.com/search/searchbox/v1/category/hospital` +
+      `?proximity=${lon},${lat}` +
+      `&limit=10` +
+      `&access_token=${accessToken}`;
+
+    const res = await fetch(url);
+
+    const data = await res.json();
+
+    console.log(
+      "MAPBOX HOSPITALS:",
+      JSON.stringify(data, null, 2)
+    );
+
+    return (data.features || []).map(
+      (item, index) => ({
+        id:
+          item.properties?.mapbox_id ||
+          String(index),
+
+        name:
+          item.properties?.name ||
+          "Hospital",
+
+        lat:
+          item.geometry?.coordinates?.[1],
+
+        lon:
+          item.geometry?.coordinates?.[0],
+
+        type: "Hospital",
+
+        emergency: false,
+
+        address:
+          item.properties?.full_address ||
+          item.properties?.place_formatted ||
+          null,
+
+        phone: null,
+      })
+    );
+  } catch (err) {
+    console.error(
+      "MAPBOX HOSPITAL ERROR:",
+      err
+    );
+
+    return [];
+  }
 }
-
 // ─── ROUTE (OSRM) ─────────────────────────────────────────────────────────────
 async function fetchRoute(fLon, fLat, tLon, tLat) {
   const url = `https://router.project-osrm.org/route/v1/driving/${fLon},${fLat};${tLon},${tLat}?overview=full&geometries=geojson`;
@@ -405,7 +425,8 @@ export default function MapScreen({ route: navRoute }) {
           animationDuration={1500}
         />
 
-        <UserLocation visible animated renderMode="native" androidRenderMode="compass"/>
+        <UserLocation visible animated renderMode="native"/><LocationPuck visible={true} puckBearing="course"
+                                                          />
 
         {/* Hospital markers */}
         {hospitals.map((h) => {
