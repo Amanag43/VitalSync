@@ -2,7 +2,9 @@ import { Stack } from "expo-router";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuthStore } from "../src/store/authStore";
+import AlertBanner from "../src/components/Alertbanner";
 import { startAlertEngine, stopAlertEngine } from "../src/engine/alertEngine";
+// import {testGoogleFitConnection} from "../src/services/googleFit";
 
 export default function RootLayout() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
@@ -21,7 +23,9 @@ export default function RootLayout() {
           return;
         }
 
-        await startAlertEngine(userId);
+await startAlertEngine(userId);
+
+
         console.log("[Layout] Alert engine started ✅");
       } catch (err) {
         console.warn("[Layout] Setup error:", err.message);
@@ -35,11 +39,12 @@ export default function RootLayout() {
   if (!hydrated) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+            {/* Alert banner shows on ALL screens */}
+            <AlertBanner />
       <Stack screenOptions={{ headerShown: false }}>
         {/* ← ADD THESE SCREENS */}
         <Stack.Screen name="(app)" />
-        <Stack.Screen name="health-diagnostic" />
         {/* Add your other screens here as needed */}
       </Stack>
     </GestureHandlerRootView>

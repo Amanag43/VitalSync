@@ -1,128 +1,82 @@
 // src/store/vitalsStore.js
-// Central vitals state using Zustand.
-// Handles: local state, backend POST, WebSocket for incoming push alerts,
-//          threshold checking and alert navigation.
-//
-// POLLING LIVES HERE — alertEngine starts/stops it.
-// Do NOT also call startVitalsPolling from healthConnect.js — that function
-// no longer exists. This store owns the interval.
-//
-// Install: npx expo install zustand
+// Central vitals state using Zustand with emergency SOS integration
 
 import { create } from "zustand";
 import { router } from "expo-router";
+import { sendSOSAlert } from "../services/emergencyservice";
 
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-// For physical Android device on same WiFi as your dev PC, use your PC's LAN IP.
-// For emulator: http://10.0.2.2:5000
-const BACKEND_URL = "http://192.168.29.170:5000";
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const BACKEND_URL = "http://192.168.29.170:5000"; // Replace with your  server IP
 
 let _ws = null; // singleton WebSocket
 
-// ─── THRESHOLDS ───────────────────────────────────────────────────────────────
-// Triggers alert when a reading is outside [min, max].
-// "critical" = more than 15 % outside the boundary.
-// bloodPressure is checked separately below (two values).
-
+// ─── THRESHOLDS (triggers alert if outside range) ─────────────────────────────
 export const THRESHOLDS = {
-  heartRate: {
-    min: 45, max: 130,
-    label: "Heart Rate", unit: "bpm",
-  },
-  spo2: {
-    min: 92, max: 100,
-    label: "SpO2", unit: "%",
-  },
+  heartRate: { min: 45, max: 130, label: "Heart Rate", unit: "bpm" },
+  spo2: { min: 92, max: 100, label: "SpO2", unit: "%" },
   respiratoryRate: {
-    min: 10, max: 25,
-    label: "Respiratory Rate", unit: "breaths/min",
+    min: 10,
+    max: 25,
+    label: "Respiratory Rate",
+    unit: "breaths/min",
   },
-  bodyTemp: {
-    min: 35.5, max: 38.5,
-    label: "Body Temperature", unit: "°C",
-  },
-};
-
-// Blood pressure checked separately (object with systolic + diastolic)
-const BP_THRESHOLDS = {
-  systolic:  { min: 80, max: 180 },
-  diastolic: { min: 50, max: 110 },
+  bodyTemp: { min: 35.5, max: 38.5, label: "Body Temperature", unit: "°C" },
 };
 
 // ─── ZUSTAND STORE ────────────────────────────────────────────────────────────
 export const useVitalsStore = create((set, get) => ({
-  // ── State ──────────────────────────────────────────────────────────────────
-  vitals:          null,   // latest vitals object from Health Connect
-  lastSync:        null,   // ISO timestamp of last successful backend POST
-  syncing:         false,
-  activeAlert:     null,   // { vital, value, severity, timestamp } | null
-  wsConnected:     false,
-  userId:          null,
-  _pollingInterval: null,  // internal — do not read directly
+  // State
+  vitals: null, // latest { heartRate, spo2, steps, respiratoryRate, bodyTemp, bloodPressure }
+  lastSync: null, // ISO timestamp of last successful POST
+  syncing: false,
+  activeAlert: null, // { vital, value, severity, patientName, timestamp }
+  wsConnected: false,
+  userId: null, // set after login
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── Actions ──────────────────────────────────────────────────────────
 
   setUserId: (id) => set({ userId: id }),
 
-  // Called by alertEngine after login
-  startPolling: (intervalMs = 20000) => {
-    // Guard: don't start a second interval if already running
-    const existing = get()._pollingInterval;
-    if (existing) return;
-
-    console.log(`[VitalsStore] Starting polling every ${intervalMs / 1000}s`);
-
-    const poll = async () => {
-      try {
-        // Dynamic import keeps iOS from crashing (healthConnect is Android-only)
-        const { readLatestVitals } = await import("../services/healthConnect");
-        const vitals = await readLatestVitals(30); // look back 30 min
-        if (vitals) {
-          await get().updateVitals(vitals);
-        } else {
-          console.log("[VitalsStore] No new vitals in window");
-        }
-      } catch (e) {
-        console.warn("[VitalsStore] Poll error:", e.message);
-      }
-    };
-
-    poll(); // immediate first read
-    const id = setInterval(poll, intervalMs);
-    set({ _pollingInterval: id });
-  },
-
-  // Called by alertEngine on logout
-  stopPolling: () => {
-    const id = get()._pollingInterval;
-    if (id) {
-      clearInterval(id);
-      set({ _pollingInterval: null });
-      console.log("[VitalsStore] Polling stopped");
-    }
-  },
-
-  // Main update — called by polling, or can be called manually for testing
+  // Called by vitals polling callback
   updateVitals: async (newVitals) => {
     set({ vitals: newVitals });
 
     const { userId } = get();
+    if (!userId) {
+      console.warn("[VitalsStore] No userId set");
+      return;
+    }
 
-    // 1. Check thresholds → maybe navigate to map
+    // 1. Check thresholds locally for instant alert
     const alert = checkThresholds(newVitals);
     if (alert) {
+      console.log(`[VitalsStore] ⚠️  THRESHOLD BREACHED: ${alert.vital}`);
       set({ activeAlert: alert });
-      console.warn("[VitalsStore] 🚨 Alert:", alert.vital, alert.severity);
+
+      // Navigate to map with alert context
       router.push({
         pathname: "/(app)/map",
         params: { alertContext: JSON.stringify(alert) },
       });
+
+      // Send SOS if CRITICAL
+      if (alert.severity === "critical") {
+        console.log("[VitalsStore] 🚨 CRITICAL - Sending SOS...");
+        try {
+          const result = await sendSOSAlert(userId, null, alert);
+          console.log(
+            `[VitalsStore] SOS result: ${result.sent} sent, ${result.failed} failed`
+          );
+        } catch (e) {
+          console.warn("[VitalsStore] SOS send error:", e.message);
+        }
+      }
+    } else {
+      console.log("[VitalsStore] ✅ Vitals normal");
     }
 
-    // 2. Sync to backend (fire-and-forget, don't block UI)
-    if (userId) {
-      get().syncToBackend(newVitals, userId, alert?.severity ?? "normal");
-    }
+    // 2. Sync to backend
+    await get().syncToBackend(newVitals, userId, alert?.severity ?? "normal");
   },
 
   syncToBackend: async (vitals, userId, severity = "normal") => {
@@ -130,19 +84,20 @@ export const useVitalsStore = create((set, get) => ({
     try {
       const payload = {
         userId,
-        timestamp:  new Date().toISOString(),
+        timestamp: new Date().toISOString(),
         vitals,
         severity,
-        deviceType: "health_connect", // ← correct: no jacket, pure HC
+        deviceType: "phone_sensors",
       };
 
+      console.log("[VitalsStore] Syncing to backend...");
       const res = await fetch(`${BACKEND_URL}/vitals`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error(`Backend responded ${res.status}`);
+      if (!res.ok) throw new Error(`Backend ${res.status}`);
 
       set({ lastSync: new Date().toISOString(), syncing: false });
       console.log("[VitalsStore] ✅ Synced to backend");
@@ -152,15 +107,21 @@ export const useVitalsStore = create((set, get) => ({
     }
   },
 
-  clearAlert: () => set({ activeAlert: null }),
+  clearAlert: () => {
+    console.log("[VitalsStore] Alert cleared");
+    set({ activeAlert: null });
+  },
 
-  // ── WebSocket ──────────────────────────────────────────────────────────────
-  // Optional: lets your backend push alerts to the app (e.g. from a second device)
+  // ── WebSocket connection ──────────────────────────────────────────────────
   connectWebSocket: (userId) => {
-    if (_ws?.readyState === WebSocket.OPEN) return;
+    if (_ws?.readyState === WebSocket.OPEN) {
+      console.log("[WS] Already connected");
+      return;
+    }
 
-    const wsUrl = `${BACKEND_URL.replace("http", "ws")}/ws?userId=${userId}`;
+    const wsUrl = BACKEND_URL.replace("http", "ws") + `/ws?userId=${userId}`;
     console.log("[WS] Connecting:", wsUrl);
+
     _ws = new WebSocket(wsUrl);
 
     _ws.onopen = () => {
@@ -171,8 +132,10 @@ export const useVitalsStore = create((set, get) => ({
     _ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        console.log("[WS] Message received:", msg.type);
 
         if (msg.type === "VITAL_ALERT") {
+          console.log("[WS] Alert from backend:", msg.payload.vital);
           set({ activeAlert: msg.payload });
           router.push({
             pathname: "/(app)/map",
@@ -183,6 +146,10 @@ export const useVitalsStore = create((set, get) => ({
         if (msg.type === "VITALS_UPDATE") {
           set({ vitals: msg.payload.vitals });
         }
+
+        if (msg.type === "CONNECTED") {
+          console.log("[WS] Connected to backend, userId:", msg.userId);
+        }
       } catch (e) {
         console.warn("[WS] Parse error:", e.message);
       }
@@ -191,6 +158,7 @@ export const useVitalsStore = create((set, get) => ({
     _ws.onclose = () => {
       console.log("[WS] Disconnected — retrying in 5s");
       set({ wsConnected: false });
+      // Reconnect after 5s
       setTimeout(() => {
         const { userId: uid } = get();
         if (uid) get().connectWebSocket(uid);
@@ -203,77 +171,87 @@ export const useVitalsStore = create((set, get) => ({
   },
 
   disconnectWebSocket: () => {
-    _ws?.close();
-    _ws = null;
+    if (_ws) {
+      _ws.close();
+      _ws = null;
+    }
     set({ wsConnected: false });
+    console.log("[WS] Disconnected");
   },
 }));
 
-// ─── THRESHOLD CHECKER ────────────────────────────────────────────────────────
-// Returns an alert object if any vital is out of range, else null.
-
+// ─── LOCAL THRESHOLD CHECK ────────────────────────────────────────────────────
+// Returns alert object if any vital is outside range, null if all normal
 function checkThresholds(vitals) {
   if (!vitals) return null;
 
-  // Check scalar vitals (heartRate, spo2, respiratoryRate, bodyTemp)
   for (const [key, rule] of Object.entries(THRESHOLDS)) {
     const reading = vitals[key];
     if (!reading) continue;
 
-    // Each reading is { value, unit, timestamp }
-    const num = parseFloat(reading.value);
+    const value = typeof reading === "object" ? reading.value : reading;
+    const num = parseFloat(value);
+
     if (isNaN(num)) continue;
 
+    // Check if value is outside range
     if (num < rule.min || num > rule.max) {
-      const severity =
-        num < rule.min * 0.85 || num > rule.max * 1.15 ? "critical" : "warning";
+      // Determine severity based on how far outside range
+      const percentBelowMin = rule.min - num;
+      const percentAboveMax = num - rule.max;
+
+      let severity = "warning";
+
+      // Critical if significantly out of range
+      if (percentBelowMin > rule.min * 0.15 || percentAboveMax > rule.max * 0.15) {
+        severity = "critical";
+      }
+
+      console.log(
+        `[Thresholds] ${rule.label}: ${num} (range: ${rule.min}-${rule.max}) → ${severity}`
+      );
 
       return {
-        vital:     `${rule.label}: ${num} ${rule.unit}`,
-        vitalKey:  key,
-        value:     num,
-        unit:      rule.unit,
+        vital: `${rule.label}: ${num} ${rule.unit}`,
+        vitalKey: key,
+        value: num,
+        unit: rule.unit,
         severity,
+        patientName: "Patient",
         timestamp: new Date().toISOString(),
       };
     }
   }
 
-  // Check blood pressure separately (different structure: { systolic, diastolic, unit, timestamp })
-  if (vitals.bloodPressure) {
-    const { systolic, diastolic } = vitals.bloodPressure;
+  return null;
+}
 
-    const sysNum = parseFloat(systolic);
-    const diaNum = parseFloat(diastolic);
+// ─── Helper: Format vitals for display ─────────────────────────────────────────
+export function formatVitals(vitals) {
+  if (!vitals) return "No data";
 
-    if (!isNaN(sysNum)) {
-      const { min, max } = BP_THRESHOLDS.systolic;
-      if (sysNum < min || sysNum > max) {
-        return {
-          vital:     `Blood Pressure (systolic): ${sysNum} mmHg`,
-          vitalKey:  "bloodPressure",
-          value:     sysNum,
-          unit:      "mmHg",
-          severity:  sysNum < min * 0.85 || sysNum > max * 1.15 ? "critical" : "warning",
-          timestamp: new Date().toISOString(),
-        };
-      }
-    }
+  const parts = [];
+  if (vitals.heartRate) parts.push(`HR: ${vitals.heartRate.value} bpm`);
+  if (vitals.spo2) parts.push(`O2: ${vitals.spo2.value}%`);
+  if (vitals.bodyTemp) parts.push(`Temp: ${vitals.bodyTemp.value}°C`);
+  if (vitals.respiratoryRate)
+    parts.push(`RR: ${vitals.respiratoryRate.value} /min`);
 
-    if (!isNaN(diaNum)) {
-      const { min, max } = BP_THRESHOLDS.diastolic;
-      if (diaNum < min || diaNum > max) {
-        return {
-          vital:     `Blood Pressure (diastolic): ${diaNum} mmHg`,
-          vitalKey:  "bloodPressure",
-          value:     diaNum,
-          unit:      "mmHg",
-          severity:  diaNum < min * 0.85 || diaNum > max * 1.15 ? "critical" : "warning",
-          timestamp: new Date().toISOString(),
-        };
-      }
-    }
+  return parts.join(" | ");
+}
+
+// ─── Helper: Get vital color based on threshold ────────────────────────────────
+export function getVitalColor(key, value) {
+  const rule = THRESHOLDS[key];
+  if (!rule || value === undefined) return "#F0F4FF"; // default text color
+
+  const num = parseFloat(value);
+  if (num < rule.min || num > rule.max) {
+    // Out of range
+    const isWayOut =
+      num < rule.min * 0.85 || num > rule.max * 1.15;
+    return isWayOut ? "#FF3B5C" : "#FF9500"; // red for critical, orange for warning
   }
 
-  return null;
+  return "#22C55E"; // green for normal
 }

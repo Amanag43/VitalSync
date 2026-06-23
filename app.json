@@ -62,7 +62,8 @@
         {
           "package": "com.VitalSync"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,

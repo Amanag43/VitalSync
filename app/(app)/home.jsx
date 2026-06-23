@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { getDevices, getAlerts } from "../../src/services/apiService";
-import { debugHealthConnect } from "../../src/utils/healthConnectDebug";
+
 import AppScreen from "../../src/components/AppScreen";
 import BMICard from "../../src/components/BMICard";
 import EmergencyBanner from "../../src/components/EmergencyBanner";
@@ -33,15 +33,12 @@ export default function Home() {
   const stopEmergency = useEmergencyStore((s) => s.stopEmergency);
 
   const BASE_URL = "http://192.168.29.170:5000";
-
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(false);
   const userLabel = user?.email ?? "User";
   const [alerts, setAlerts] = useState([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
-  useEffect(() => {
-    debugHealthConnect();
-  }, []);
+
 
  useFocusEffect(
    useCallback(() => {
@@ -86,7 +83,11 @@ const handleDeleteDevice = async (deviceId) => {
 
   const devicesCount = useMemo(() => devices.length, [devices]);
   const getDeviceStatus = () => "online";
-
+const alert = {
+  type: emergencyReason,
+  severity: "HIGH",
+  value: "",
+};
   return (
     <View style={{ flex: 1 }}>
       <AppScreen>
@@ -108,6 +109,14 @@ const handleDeleteDevice = async (deviceId) => {
             />
           </Pressable>
         </View>
+        <TouchableOpacity
+          onPress={() => router.push("/emergency-contacts")}
+          style={{ padding: 12, backgroundColor: "#FF3B5C", borderRadius: 10, marginVertical: 10 }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>
+            🆘 Emergency Contacts
+          </Text>
+        </TouchableOpacity>
         {/* EMERGENCY */}
         {emergencyActive && (
           <View style={styles.emergencyCard}>
@@ -134,14 +143,7 @@ const handleDeleteDevice = async (deviceId) => {
             });
           }}
         />
-        <TouchableOpacity
-                style={{ padding: 16, backgroundColor: "#333", marginTop: 20 }}
-                onPress={() => router.push("/health-diagnostic")}
-              >
-                <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}>
-                  🔬 Health Diagnostic
-                </Text>
-              </TouchableOpacity>
+
 
         <PrimaryAidCard />
 

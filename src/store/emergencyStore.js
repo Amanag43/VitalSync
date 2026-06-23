@@ -11,7 +11,7 @@ export const useEmergencyStore = create((set, get) => ({
   lastLocation: null,
 
   // 🚨 Start Emergency
-  startEmergency: (reason, vitals = null, location = null) => {
+  startEmergency: (reason, vaitals = null, location = null) => {
     const alreadyActive = get().emergencyActive;
 
     // ❗ Prevent duplicate triggers
